@@ -3,7 +3,7 @@
 client_id = "d21ac457d82f829a819d24d124f78359"
 application_url = "https://product-option-sets-production.up.railway.app"
 embedded = true
-name = "Products Options Extras Extras"
+name = "Products Options Extras"
 
 [webhooks]
 api_version = "2026-10"
@@ -26,4 +26,4 @@ prefix = "apps"
 
 [build]
 include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false

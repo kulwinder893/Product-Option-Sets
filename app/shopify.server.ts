@@ -24,6 +24,9 @@ const shopify = shopifyApp({
     : {}),
 });
 
+
+
+
 export default shopify;
 export const apiVersion = ApiVersion.October25;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;

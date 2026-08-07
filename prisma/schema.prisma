@@ -1,15 +1,13 @@
 // Option Sets Pro — Prisma Schema
-// Development: SQLite | Production: switch provider to "postgresql"
-// DATABASE_URL examples:
-//   SQLite:      file:./dev.sqlite
-//   PostgreSQL:  postgresql://USER:PASSWORD@HOST:5432/DB?schema=public
+// Provider: PostgreSQL (required for Railway / multi-instance production)
+// DATABASE_URL example: postgresql://USER:PASSWORD@HOST:5432/DB?schema=public
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

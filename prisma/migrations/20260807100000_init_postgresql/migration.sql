@@ -1,23 +1,76 @@
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "OptionSetStatus" AS ENUM ('ACTIVE', 'DISABLED', 'ARCHIVED');
+
+-- CreateEnum
+CREATE TYPE "AssignmentMode" AS ENUM ('ALL_PRODUCTS', 'MANUAL', 'CONDITIONS');
+
+-- CreateEnum
+CREATE TYPE "FieldType" AS ENUM ('HEADING', 'PARAGRAPH', 'DIVIDER', 'SPACER', 'TEXT_BOX', 'TEXTAREA', 'DROPDOWN', 'CHECKBOX', 'RADIO_BUTTON', 'SWITCH', 'BUTTONS', 'COLOR_SWATCHES', 'IMAGE_SWATCHES', 'FILE_UPLOAD', 'DATE_PICKER', 'TIME_PICKER', 'DATE_RANGE', 'NUMBER', 'RANGE_SLIDER', 'QUANTITY', 'PRODUCT_PICKER', 'CUSTOM_HTML', 'HIDDEN_FIELD', 'GROUP');
+
+-- CreateEnum
+CREATE TYPE "ConditionalAction" AS ENUM ('SHOW', 'HIDE', 'ENABLE', 'DISABLE', 'REQUIRE');
+
+-- CreateEnum
+CREATE TYPE "ConditionalLogic" AS ENUM ('AND', 'OR');
+
+-- CreateEnum
+CREATE TYPE "PriceRuleType" AS ENUM ('FIXED', 'PERCENTAGE', 'QUANTITY', 'FORMULA');
+
+-- CreateEnum
+CREATE TYPE "LogLevel" AS ENUM ('DEBUG', 'INFO', 'WARN', 'ERROR');
+
+-- CreateTable
+CREATE TABLE "Session" (
+    "id" TEXT NOT NULL,
+    "shop" TEXT NOT NULL,
+    "state" TEXT NOT NULL,
+    "isOnline" BOOLEAN NOT NULL DEFAULT false,
+    "scope" TEXT,
+    "expires" TIMESTAMP(3),
+    "accessToken" TEXT NOT NULL,
+    "userId" BIGINT,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "email" TEXT,
+    "accountOwner" BOOLEAN NOT NULL DEFAULT false,
+    "locale" TEXT,
+    "collaborator" BOOLEAN DEFAULT false,
+    "emailVerified" BOOLEAN DEFAULT false,
+    "refreshToken" TEXT,
+    "refreshTokenExpires" TIMESTAMP(3),
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "OptionSet" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "status" "OptionSetStatus" NOT NULL DEFAULT 'ACTIVE',
+    "assignmentMode" "AssignmentMode" NOT NULL DEFAULT 'MANUAL',
+    "assignmentConditions" TEXT,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "internalNote" TEXT,
-    "deletedAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OptionSet_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "OptionField" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "parentId" TEXT,
-    "type" TEXT NOT NULL,
+    "type" "FieldType" NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
     "placeholder" TEXT,
@@ -36,71 +89,70 @@ CREATE TABLE "OptionField" (
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "collapsed" BOOLEAN NOT NULL DEFAULT false,
     "settings" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "OptionField_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "OptionField_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OptionField" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OptionField_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "FieldChoice" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "fieldId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "imageUrl" TEXT,
     "colorHex" TEXT,
-    "priceAddon" REAL,
+    "priceAddon" DOUBLE PRECISION,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "isDisabled" BOOLEAN NOT NULL DEFAULT false,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "metadata" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "FieldChoice_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "OptionField" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FieldChoice_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ConditionalRule" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "targetFieldId" TEXT NOT NULL,
     "triggerFieldId" TEXT,
-    "action" TEXT NOT NULL,
-    "logic" TEXT NOT NULL DEFAULT 'AND',
+    "action" "ConditionalAction" NOT NULL,
+    "logic" "ConditionalLogic" NOT NULL DEFAULT 'AND',
     "conditions" TEXT NOT NULL,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ConditionalRule_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ConditionalRule_targetFieldId_fkey" FOREIGN KEY ("targetFieldId") REFERENCES "OptionField" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ConditionalRule_triggerFieldId_fkey" FOREIGN KEY ("triggerFieldId") REFERENCES "OptionField" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ConditionalRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "PriceRule" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT,
     "fieldId" TEXT,
     "choiceId" TEXT,
-    "type" TEXT NOT NULL,
-    "amount" REAL,
+    "type" "PriceRuleType" NOT NULL,
+    "amount" DOUBLE PRECISION,
     "formula" TEXT,
     "quantityTiers" TEXT,
     "label" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "PriceRule_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PriceRule_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "OptionField" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PriceRule_choiceId_fkey" FOREIGN KEY ("choiceId") REFERENCES "FieldChoice" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PriceRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ProductAssignment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "productId" TEXT NOT NULL,
@@ -109,14 +161,15 @@ CREATE TABLE "ProductAssignment" (
     "productHandle" TEXT,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ProductAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProductAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "CollectionAssignment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "collectionId" TEXT NOT NULL,
@@ -125,53 +178,57 @@ CREATE TABLE "CollectionAssignment" (
     "collectionHandle" TEXT,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "CollectionAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CollectionAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "VendorAssignment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "vendor" TEXT NOT NULL,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "VendorAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "VendorAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "TagAssignment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "tag" TEXT NOT NULL,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "TagAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TagAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ProductTypeAssignment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "optionSetId" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "productType" TEXT NOT NULL,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "ProductTypeAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProductTypeAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "FileUpload" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "optionSetId" TEXT,
     "fieldId" TEXT,
@@ -187,13 +244,15 @@ CREATE TABLE "FileUpload" (
     "storageUrl" TEXT,
     "checksum" TEXT,
     "validated" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FileUpload_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Settings" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "general" TEXT NOT NULL DEFAULT '{}',
     "theme" TEXT NOT NULL DEFAULT '{}',
@@ -202,20 +261,24 @@ CREATE TABLE "Settings" (
     "customCss" TEXT,
     "customJs" TEXT,
     "fileUpload" TEXT NOT NULL DEFAULT '{"maxSizeMb":10,"allowedExtensions":["jpg","jpeg","png","gif","pdf","webp"]}',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Settings_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Log" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
-    "level" TEXT NOT NULL DEFAULT 'INFO',
+    "level" "LogLevel" NOT NULL DEFAULT 'INFO',
     "action" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "metadata" TEXT,
     "actor" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Log_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -322,3 +385,45 @@ CREATE INDEX "Log_shop_level_idx" ON "Log"("shop", "level");
 
 -- CreateIndex
 CREATE INDEX "Log_shop_action_idx" ON "Log"("shop", "action");
+
+-- AddForeignKey
+ALTER TABLE "OptionField" ADD CONSTRAINT "OptionField_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OptionField" ADD CONSTRAINT "OptionField_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "OptionField"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FieldChoice" ADD CONSTRAINT "FieldChoice_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "OptionField"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ConditionalRule" ADD CONSTRAINT "ConditionalRule_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ConditionalRule" ADD CONSTRAINT "ConditionalRule_targetFieldId_fkey" FOREIGN KEY ("targetFieldId") REFERENCES "OptionField"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ConditionalRule" ADD CONSTRAINT "ConditionalRule_triggerFieldId_fkey" FOREIGN KEY ("triggerFieldId") REFERENCES "OptionField"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PriceRule" ADD CONSTRAINT "PriceRule_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PriceRule" ADD CONSTRAINT "PriceRule_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES "OptionField"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PriceRule" ADD CONSTRAINT "PriceRule_choiceId_fkey" FOREIGN KEY ("choiceId") REFERENCES "FieldChoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProductAssignment" ADD CONSTRAINT "ProductAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CollectionAssignment" ADD CONSTRAINT "CollectionAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VendorAssignment" ADD CONSTRAINT "VendorAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TagAssignment" ADD CONSTRAINT "TagAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProductTypeAssignment" ADD CONSTRAINT "ProductTypeAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;

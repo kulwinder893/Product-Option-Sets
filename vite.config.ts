@@ -6,17 +6,29 @@ import tsconfigPaths from "vite-tsconfig-paths";
 // Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the Vite server.
 // The CLI will eventually stop passing in HOST,
 // so we can remove this workaround after the next major release.
+// Skip bare hosts like 0.0.0.0 (Docker/Railway bind address) — those are not URLs.
+const hostEnv = process.env.HOST;
+const hostLooksLikeUrl =
+  !!hostEnv && /^https?:\/\//i.test(hostEnv);
 if (
-  process.env.HOST &&
+  hostLooksLikeUrl &&
   (!process.env.SHOPIFY_APP_URL ||
-    process.env.SHOPIFY_APP_URL === process.env.HOST)
+    process.env.SHOPIFY_APP_URL === hostEnv)
 ) {
-  process.env.SHOPIFY_APP_URL = process.env.HOST;
+  process.env.SHOPIFY_APP_URL = hostEnv;
   delete process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
-  .hostname;
+function appHostname() {
+  const raw = process.env.SHOPIFY_APP_URL || "http://localhost";
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    return "localhost";
+  }
+}
+
+const host = appHostname();
 
 let hmrConfig;
 if (host === "localhost") {

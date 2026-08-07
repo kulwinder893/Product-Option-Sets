@@ -1,5 +1,3 @@
-npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
-npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
@@ -427,3 +425,4 @@ ALTER TABLE "TagAssignment" ADD CONSTRAINT "TagAssignment_optionSetId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "ProductTypeAssignment" ADD CONSTRAINT "ProductTypeAssignment_optionSetId_fkey" FOREIGN KEY ("optionSetId") REFERENCES "OptionSet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

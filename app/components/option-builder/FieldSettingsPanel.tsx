@@ -196,19 +196,19 @@ export function FieldSettingsPanel({
         <s-grid gridTemplateColumns="1fr 1fr" gap="small-200">
           <s-number-field
             label="Max files"
-            value={String(field.settings.maxFiles ?? 1)}
+            value={field.settings.maxFiles == null ? "" : String(field.settings.maxFiles)}
             onInput={(e: Event) =>
               patchSettings({
-                maxFiles: Number((e.currentTarget as HTMLInputElement).value) || 1,
+                maxFiles: numberOrNull((e.currentTarget as HTMLInputElement).value),
               })
             }
           />
           <s-number-field
             label="Max size (MB)"
-            value={String(field.settings.maxSizeMb ?? 10)}
+            value={field.settings.maxSizeMb == null ? "" : String(field.settings.maxSizeMb)}
             onInput={(e: Event) =>
               patchSettings({
-                maxSizeMb: Number((e.currentTarget as HTMLInputElement).value) || 10,
+                maxSizeMb: numberOrNull((e.currentTarget as HTMLInputElement).value),
               })
             }
           />

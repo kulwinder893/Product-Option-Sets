@@ -26,8 +26,8 @@ export type FieldSettings = {
   unit?: string;
 
   /** File upload */
-  maxFiles?: number;
-  maxSizeMb?: number;
+  maxFiles?: number | null;
+  maxSizeMb?: number | null;
   allowedExtensions?: string[];
 
   /** Date + time */

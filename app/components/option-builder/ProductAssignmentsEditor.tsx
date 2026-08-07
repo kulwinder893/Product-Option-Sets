@@ -37,7 +37,7 @@ export function ProductAssignmentsEditor({
       action: "select",
       multiple: true,
       selectionIds: products.map((product) => ({ id: product.productGid })),
-      filter: { hidden: false, variants: false, draft: true, archived: false },
+      filter: { hidden: false, variants: false, draft: false, archived: false },
     });
 
     if (!result) return;

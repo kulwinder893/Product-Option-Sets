@@ -1,0 +1,42 @@
+{%- if product -%}
+  <div
+    data-product-options-slot
+    class="product-options-slot"
+    style="--product-options-slot-top: {{ block.settings.margin_top }}px; --product-options-slot-bottom: {{ block.settings.margin_bottom }}px;"
+    {{ block.shopify_attributes }}
+  ></div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Product options",
+  "target": "section",
+  "stylesheet": "product-options.css",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Options render here. Keep the \"Product Options\" app embed enabled in Theme settings."
+    },
+    {
+      "type": "range",
+      "id": "margin_top",
+      "label": "Top spacing",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "margin_bottom",
+      "label": "Bottom spacing",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "unit": "px",
+      "default": 16
+    }
+  ]
+}
+{% endschema %}

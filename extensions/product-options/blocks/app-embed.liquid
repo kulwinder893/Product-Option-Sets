@@ -1,0 +1,109 @@
+{%- comment -%}
+  Rendered on every page: the cart drawer can open anywhere, so the cart
+  tidying script has to be available outside the product template too.
+{%- endcomment -%}
+{%- assign accent_color = block.settings.accent_color | default: '#1a1a1a' -%}
+<script type="application/json" data-product-options-context>
+  {
+    "shop": {{ shop.permanent_domain | json }},
+    "proxyPath": "/apps/product-options",
+    "moneyFormat": {{ shop.money_format | json }},
+    "product": {%- if product -%}
+      {
+        "id": {{ product.id | json }},
+        "handle": {{ product.handle | json }},
+        "title": {{ product.title | json }},
+        "vendor": {{ product.vendor | json }},
+        "productType": {{ product.type | json }},
+        "tags": {{ product.tags | json }}
+      }
+    {%- else -%}null{%- endif -%},
+    "settings": {
+      "placement": {{ block.settings.placement | json }},
+      "heading": {{ block.settings.heading | json }},
+      "accentColor": "{{ accent_color }}",
+      "showPriceAddons": {{ block.settings.show_price_addons | json }},
+      "showTotal": {{ block.settings.show_total | json }},
+      "cartDisplay": {{ block.settings.cart_display | json }},
+      "requiredMarker": {{ block.settings.required_marker | json }}
+    }
+  }
+</script>
+<script src="{{ 'product-options.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "Product Options",
+  "target": "body",
+  "stylesheet": "product-options.css",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Placement"
+    },
+    {
+      "type": "select",
+      "id": "placement",
+      "label": "Where to show options",
+      "default": "before_buy_buttons",
+      "options": [
+        { "value": "before_buy_buttons", "label": "Above the Add to cart button" },
+        { "value": "after_buy_buttons", "label": "Below the Add to cart button" },
+        { "value": "end_of_form", "label": "End of the product form" },
+        { "value": "app_block_only", "label": "Only where I add the app block" }
+      ],
+      "info": "Choose \"Only where I add the app block\" to position options manually inside the product template."
+    },
+    {
+      "type": "header",
+      "content": "Appearance"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Section heading",
+      "info": "Leave empty to hide the heading."
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "default": "#1a1a1a"
+    },
+    {
+      "type": "text",
+      "id": "required_marker",
+      "label": "Required marker",
+      "default": "*"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_price_addons",
+      "label": "Show price add-ons next to options",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_total",
+      "label": "Show an options total summary",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Cart and checkout"
+    },
+    {
+      "type": "select",
+      "id": "cart_display",
+      "label": "How options appear in the cart",
+      "default": "name_and_value",
+      "options": [
+        { "value": "name_and_value", "label": "Option name and value (Gender: Male)" },
+        { "value": "value_only", "label": "Value only, on its own line (Male)" },
+        { "value": "merge_with_variant", "label": "Merged into the variant line (Black, XS, Male)" }
+      ],
+      "info": "Merging only applies to the cart page and cart drawer. Checkout is rendered by Shopify and always lists options separately."
+    }
+  ]
+}
+{% endschema %}

@@ -3,7 +3,7 @@
 client_id = "d21ac457d82f829a819d24d124f78359"
 application_url = "https://product-option-sets-production.up.railway.app"
 embedded = true
-name = "Products Options Extras"
+name = "Products Options Extras Extras"
 
 [webhooks]
 api_version = "2026-10"

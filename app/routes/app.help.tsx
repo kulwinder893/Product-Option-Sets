@@ -10,6 +10,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function HelpPage() {
   return (
     <s-page heading="Help">
+      <s-section heading="Storefront setup">
+        <s-unordered-list>
+          <s-list-item>
+            Open the theme editor from Dashboard → App Status → Open theme
+            editor, then enable the Product Options app embed and save.
+          </s-list-item>
+          <s-list-item>
+            Optional: add the Product options app block on your product template
+            to control exactly where options appear on the page.
+          </s-list-item>
+          <s-list-item>
+            Set the app embed placement to &quot;Only where I add the app
+            block&quot; if you rely on the block for positioning.
+          </s-list-item>
+        </s-unordered-list>
+      </s-section>
+
       <s-section heading="Getting started">
         <s-unordered-list>
           <s-list-item>Create an option set from Option Sets.</s-list-item>

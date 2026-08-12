@@ -3,22 +3,33 @@ import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { optionSetService } from "../services/option-set.service";
+import { getThemeIntegrationStatus } from "../services/theme-status.service";
+import { AppStatusCard } from "../components/dashboard/AppStatusCard";
+import { OnboardingCard } from "../components/dashboard/OnboardingCard";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const stats = await optionSetService.dashboardStats(session.shop);
+  const { admin, session } = await authenticate.admin(request);
+  const apiKey = process.env.SHOPIFY_API_KEY ?? "";
 
-  return { shop: session.shop, stats };
+  const [stats, themeStatus] = await Promise.all([
+    optionSetService.dashboardStats(session.shop),
+    getThemeIntegrationStatus(admin, apiKey),
+  ]);
+
+  return { stats, themeStatus };
 };
 
 export default function Dashboard() {
-  const { stats } = useLoaderData<typeof loader>();
+  const { stats, themeStatus } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Dashboard">
       <s-button slot="primary-action" variant="primary" href="/app/option-sets?create=1">
         Create option set
       </s-button>
+
+      <AppStatusCard status={themeStatus} />
+      <OnboardingCard themeStatus={themeStatus} optionSetCount={stats.total} />
 
       <s-section heading="Overview">
         <s-paragraph>

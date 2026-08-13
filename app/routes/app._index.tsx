@@ -1,4 +1,8 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
@@ -8,7 +12,7 @@ import { AppStatusCard } from "../components/dashboard/AppStatusCard";
 import { OnboardingCard } from "../components/dashboard/OnboardingCard";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, session, scopes } = await authenticate.admin(request);
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
   const url = new URL(request.url);
   const selectedThemeParam = url.searchParams.get("theme");
@@ -18,12 +22,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : `gid://shopify/OnlineStoreTheme/${selectedThemeParam}`
     : null;
 
+  let hasReadThemes = true;
+  try {
+    const scopeDetail = await scopes.query();
+    hasReadThemes = scopeDetail.granted.includes("read_themes");
+  } catch (error) {
+    console.error("Failed to query app scopes:", error);
+  }
+
   const [stats, themeStatus] = await Promise.all([
     optionSetService.dashboardStats(session.shop),
-    getThemeIntegrationStatus(admin, apiKey, selectedThemeId),
+    getThemeIntegrationStatus(admin, apiKey, selectedThemeId, {
+      hasReadThemes,
+    }),
   ]);
 
   return { stats, themeStatus };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { scopes } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") || "");
+
+  if (intent === "request-theme-access") {
+    // Redirects the merchant to approve read_themes when it is not granted.
+    await scopes.request(["read_themes"]);
+    return { ok: true };
+  }
+
+  return { ok: false };
 };
 
 export default function Dashboard() {

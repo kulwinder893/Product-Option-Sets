@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useFetcher, useNavigate, useSearchParams } from "react-router";
 import type { ThemeInfo, ThemeIntegrationStatus } from "../../types/theme";
 import { APP_NAME } from "../../constants";
 
@@ -18,14 +18,19 @@ function StatusBadge({ active, label }: { active: boolean; label: string }) {
 function ThemeSelector({
   themes,
   selected,
+  needsThemeAccess,
+  error,
 }: {
   themes: ThemeInfo[];
   selected: ThemeInfo | null;
+  needsThemeAccess: boolean;
+  error: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
+  const fetcher = useFetcher();
 
   useEffect(() => {
     if (!open) return;
@@ -57,11 +62,31 @@ function ThemeSelector({
     navigate(`?${next.toString()}`, { replace: true });
   };
 
-  if (themes.length === 0) {
+  if (needsThemeAccess || themes.length === 0) {
     return (
       <s-stack direction="inline" gap="small-200" alignItems="center">
         <s-text color="subdued">Theme:</s-text>
-        <s-text type="strong">No themes found</s-text>
+        <s-text type="strong">
+          {needsThemeAccess ? "Access required" : "No themes found"}
+        </s-text>
+        {needsThemeAccess ? (
+          <s-button
+            type="button"
+            variant="primary"
+            loading={fetcher.state !== "idle"}
+            onClick={() => {
+              fetcher.submit(
+                { intent: "request-theme-access" },
+                { method: "post" },
+              );
+            }}
+          >
+            Grant theme access
+          </s-button>
+        ) : null}
+        {error && !needsThemeAccess ? (
+          <s-text color="subdued">{error}</s-text>
+        ) : null}
       </s-stack>
     );
   }
@@ -155,6 +180,13 @@ export function AppStatusCard({ status }: Props) {
   return (
     <s-section heading="App Status">
       <s-stack direction="block" gap="base">
+        {status.needsThemeAccess ? (
+          <s-banner tone="warning">
+            Theme access is missing. Grant <s-text type="strong">read_themes</s-text>{" "}
+            so the app can list your store themes and check app embed / block status.
+          </s-banner>
+        ) : null}
+
         <div
           style={{
             display: "flex",
@@ -162,7 +194,12 @@ export function AppStatusCard({ status }: Props) {
             alignItems: "center",
           }}
         >
-          <ThemeSelector themes={status.themes} selected={status.theme} />
+          <ThemeSelector
+            themes={status.themes}
+            selected={status.theme}
+            needsThemeAccess={status.needsThemeAccess}
+            error={status.error}
+          />
         </div>
 
         <s-grid gridTemplateColumns="1fr 1fr" gap="base">

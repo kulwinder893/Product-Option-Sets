@@ -13,4 +13,8 @@ export type ThemeIntegrationStatus = {
   appEmbedEditorUrl: string;
   appBlockEditorUrl: string;
   themeEditorUrl: string;
+  /** True when the shop has not granted read_themes yet. */
+  needsThemeAccess: boolean;
+  /** Human-readable reason when themes cannot be loaded. */
+  error: string | null;
 };

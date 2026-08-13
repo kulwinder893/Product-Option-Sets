@@ -8,9 +8,10 @@ import {
   themeNumericId,
 } from "../utils/theme-files";
 
+/** Fetch all store themes — omit roles so nothing is filtered out. */
 const THEMES_QUERY = `#graphql
   query DashboardThemes {
-    themes(first: 50, roles: [MAIN, UNPUBLISHED, DEVELOPMENT]) {
+    themes(first: 50) {
       nodes {
         id
         name
@@ -37,6 +38,11 @@ const THEME_FILES_QUERY = `#graphql
   }
 `;
 
+type GraphqlError = {
+  message?: string;
+  extensions?: { code?: string };
+};
+
 type ThemesResponse = {
   data?: {
     themes?: {
@@ -47,6 +53,7 @@ type ThemesResponse = {
       }>;
     };
   };
+  errors?: GraphqlError[];
 };
 
 type ThemeFilesResponse = {
@@ -60,9 +67,12 @@ type ThemeFilesResponse = {
       };
     };
   };
+  errors?: GraphqlError[];
 };
 
-function emptyStatus(): ThemeIntegrationStatus {
+function emptyStatus(
+  patch: Partial<ThemeIntegrationStatus> = {},
+): ThemeIntegrationStatus {
   return {
     theme: null,
     themes: [],
@@ -72,6 +82,9 @@ function emptyStatus(): ThemeIntegrationStatus {
     appBlockEditorUrl:
       "shopify://admin/themes/current/editor?template=product",
     themeEditorUrl: "shopify://admin/themes/current/editor",
+    needsThemeAccess: false,
+    error: null,
+    ...patch,
   };
 }
 
@@ -96,19 +109,61 @@ function sortThemes(themes: ThemeInfo[]): ThemeInfo[] {
   });
 }
 
+function isAccessDenied(errors: GraphqlError[] | undefined): boolean {
+  if (!errors?.length) return false;
+  return errors.some((error) => {
+    const code = error.extensions?.code?.toUpperCase() ?? "";
+    const message = (error.message ?? "").toLowerCase();
+    return (
+      code.includes("ACCESS") ||
+      message.includes("access denied") ||
+      message.includes("read_themes") ||
+      message.includes("access scope")
+    );
+  });
+}
+
 export async function getThemeIntegrationStatus(
   admin: AdminApiContext,
   apiKey: string,
   selectedThemeId?: string | null,
+  options?: { hasReadThemes?: boolean },
 ): Promise<ThemeIntegrationStatus> {
+  if (options?.hasReadThemes === false) {
+    return emptyStatus({
+      needsThemeAccess: true,
+      error:
+        "This app needs theme access to list your themes. Click “Grant theme access” to continue.",
+    });
+  }
+
   try {
     const themesResponse = await admin.graphql(THEMES_QUERY);
     const themesJson = (await themesResponse.json()) as ThemesResponse;
+
+    if (themesJson.errors?.length) {
+      console.error("Themes GraphQL errors:", themesJson.errors);
+      if (isAccessDenied(themesJson.errors)) {
+        return emptyStatus({
+          needsThemeAccess: true,
+          error:
+            "Theme access is not granted yet. Click “Grant theme access” to continue.",
+        });
+      }
+      return emptyStatus({
+        error: themesJson.errors[0]?.message ?? "Could not load themes.",
+      });
+    }
+
     const themes = sortThemes(
       (themesJson.data?.themes?.nodes ?? []).map(toThemeInfo),
     );
 
-    if (themes.length === 0) return emptyStatus();
+    if (themes.length === 0) {
+      return emptyStatus({
+        error: "No themes were returned for this shop.",
+      });
+    }
 
     const selected =
       themes.find((theme) => theme.id === selectedThemeId) ??
@@ -128,6 +183,10 @@ export async function getThemeIntegrationStatus(
     });
 
     const filesJson = (await filesResponse.json()) as ThemeFilesResponse;
+    if (filesJson.errors?.length) {
+      console.error("Theme files GraphQL errors:", filesJson.errors);
+    }
+
     const fileNodes = filesJson.data?.theme?.files?.nodes ?? [];
 
     const settingsContent = fileNodes.find(
@@ -144,10 +203,17 @@ export async function getThemeIntegrationStatus(
       themes,
       appEmbedActive: isAppEmbedActive(settingsContent, apiKey),
       appBlockCount: countActiveAppBlocks(templateContents, apiKey),
+      needsThemeAccess: false,
+      error: null,
       ...urls,
     };
   } catch (error) {
     console.error("Failed to load theme integration status:", error);
-    return emptyStatus();
+    return emptyStatus({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not load theme status.",
+    });
   }
 }

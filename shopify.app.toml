@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "d21ac457d82f829a819d24d124f78359"
-application_url = "https://product-option-sets-production.up.railway.app"
+application_url = "https://product-option-sets-production.up.railway.app/app"
 embedded = true
 name = "Products Options Extras"
 

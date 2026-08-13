@@ -1,6 +1,6 @@
 import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { THEME_BLOCK_TEMPLATE_FILES } from "../constants/theme";
-import type { ThemeIntegrationStatus } from "../types/theme";
+import type { ThemeInfo, ThemeIntegrationStatus } from "../types/theme";
 import {
   countActiveAppBlocks,
   isAppEmbedActive,
@@ -8,9 +8,9 @@ import {
   themeNumericId,
 } from "../utils/theme-files";
 
-const MAIN_THEME_QUERY = `#graphql
-  query DashboardMainTheme {
-    themes(first: 1, roles: [MAIN]) {
+const THEMES_QUERY = `#graphql
+  query DashboardThemes {
+    themes(first: 50, roles: [MAIN, UNPUBLISHED, DEVELOPMENT]) {
       nodes {
         id
         name
@@ -37,7 +37,7 @@ const THEME_FILES_QUERY = `#graphql
   }
 `;
 
-type MainThemeResponse = {
+type ThemesResponse = {
   data?: {
     themes?: {
       nodes?: Array<{
@@ -65,6 +65,7 @@ type ThemeFilesResponse = {
 function emptyStatus(): ThemeIntegrationStatus {
   return {
     theme: null,
+    themes: [],
     appEmbedActive: false,
     appBlockCount: 0,
     appEmbedEditorUrl: "shopify://admin/themes/current/editor?context=apps",
@@ -74,23 +75,51 @@ function emptyStatus(): ThemeIntegrationStatus {
   };
 }
 
+function toThemeInfo(node: {
+  id: string;
+  name: string;
+  role: string;
+}): ThemeInfo {
+  return {
+    id: node.id,
+    numericId: themeNumericId(node.id),
+    name: node.name,
+    role: node.role,
+  };
+}
+
+function sortThemes(themes: ThemeInfo[]): ThemeInfo[] {
+  return [...themes].sort((a, b) => {
+    if (a.role === "MAIN" && b.role !== "MAIN") return -1;
+    if (b.role === "MAIN" && a.role !== "MAIN") return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export async function getThemeIntegrationStatus(
   admin: AdminApiContext,
   apiKey: string,
+  selectedThemeId?: string | null,
 ): Promise<ThemeIntegrationStatus> {
   try {
-    const themeResponse = await admin.graphql(MAIN_THEME_QUERY);
-    const themeJson = (await themeResponse.json()) as MainThemeResponse;
-    const themeNode = themeJson.data?.themes?.nodes?.[0];
+    const themesResponse = await admin.graphql(THEMES_QUERY);
+    const themesJson = (await themesResponse.json()) as ThemesResponse;
+    const themes = sortThemes(
+      (themesJson.data?.themes?.nodes ?? []).map(toThemeInfo),
+    );
 
-    if (!themeNode) return emptyStatus();
+    if (themes.length === 0) return emptyStatus();
 
-    const numericId = themeNumericId(themeNode.id);
-    const urls = themeEditorUrls(numericId, apiKey);
+    const selected =
+      themes.find((theme) => theme.id === selectedThemeId) ??
+      themes.find((theme) => theme.role === "MAIN") ??
+      themes[0];
+
+    const urls = themeEditorUrls(selected.numericId, apiKey);
 
     const filesResponse = await admin.graphql(THEME_FILES_QUERY, {
       variables: {
-        themeId: themeNode.id,
+        themeId: selected.id,
         filenames: [
           "config/settings_data.json",
           ...THEME_BLOCK_TEMPLATE_FILES,
@@ -111,12 +140,8 @@ export async function getThemeIntegrationStatus(
     );
 
     return {
-      theme: {
-        id: themeNode.id,
-        numericId,
-        name: themeNode.name,
-        role: themeNode.role,
-      },
+      theme: selected,
+      themes,
       appEmbedActive: isAppEmbedActive(settingsContent, apiKey),
       appBlockCount: countActiveAppBlocks(templateContents, apiKey),
       ...urls,

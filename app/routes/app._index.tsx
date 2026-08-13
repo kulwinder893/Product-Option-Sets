@@ -10,10 +10,17 @@ import { OnboardingCard } from "../components/dashboard/OnboardingCard";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const apiKey = process.env.SHOPIFY_API_KEY ?? "";
+  const url = new URL(request.url);
+  const selectedThemeParam = url.searchParams.get("theme");
+  const selectedThemeId = selectedThemeParam
+    ? selectedThemeParam.startsWith("gid://")
+      ? selectedThemeParam
+      : `gid://shopify/OnlineStoreTheme/${selectedThemeParam}`
+    : null;
 
   const [stats, themeStatus] = await Promise.all([
     optionSetService.dashboardStats(session.shop),
-    getThemeIntegrationStatus(admin, apiKey),
+    getThemeIntegrationStatus(admin, apiKey, selectedThemeId),
   ]);
 
   return { stats, themeStatus };

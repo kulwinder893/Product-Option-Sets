@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useFetcher, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useRevalidator, useSearchParams } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import type { ThemeInfo, ThemeIntegrationStatus } from "../../types/theme";
 import { APP_NAME } from "../../constants";
 
@@ -27,10 +28,12 @@ function ThemeSelector({
   error: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
+  const shopify = useAppBridge();
   const rootRef = useRef<HTMLDivElement>(null);
-  const fetcher = useFetcher();
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +65,31 @@ function ThemeSelector({
     navigate(`?${next.toString()}`, { replace: true });
   };
 
+  const requestThemeAccess = async () => {
+    setRequesting(true);
+    try {
+      const response = await shopify.scopes.request(["read_themes"]);
+      if (response?.result === "granted-all") {
+        revalidator.revalidate();
+      }
+    } catch (requestError) {
+      console.error("Failed to request read_themes:", requestError);
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = ".";
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "intent";
+      input.value = "request-theme-access";
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      return;
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   if (needsThemeAccess || themes.length === 0) {
     return (
       <s-stack direction="inline" gap="small-200" alignItems="center">
@@ -73,12 +101,9 @@ function ThemeSelector({
           <s-button
             type="button"
             variant="primary"
-            loading={fetcher.state !== "idle"}
+            {...(requesting ? { loading: true } : {})}
             onClick={() => {
-              fetcher.submit(
-                { intent: "request-theme-access" },
-                { method: "post" },
-              );
+              void requestThemeAccess();
             }}
           >
             Grant theme access
@@ -182,8 +207,9 @@ export function AppStatusCard({ status }: Props) {
       <s-stack direction="block" gap="base">
         {status.needsThemeAccess ? (
           <s-banner tone="warning">
-            Theme access is missing. Grant <s-text type="strong">read_themes</s-text>{" "}
-            so the app can list your store themes and check app embed / block status.
+            Theme access is missing. Click <s-text type="strong">Grant theme access</s-text>{" "}
+            and approve <s-text type="strong">read_themes</s-text> so the app can list your
+            store themes and check app embed / block status.
           </s-banner>
         ) : null}
 

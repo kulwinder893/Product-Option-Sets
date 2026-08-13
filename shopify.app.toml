@@ -10,7 +10,9 @@ api_version = "2026-10"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access-scopes
-scopes = "read_files,read_products,read_themes,write_files,write_products"
+# read_themes is optional so Dashboard can request it dynamically with scopes.request()
+scopes = "read_files,read_products,write_files,write_products"
+optional_scopes = [ "read_themes" ]
 
 [auth]
 redirect_urls = [

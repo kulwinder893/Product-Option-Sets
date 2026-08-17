@@ -7,7 +7,7 @@ import {
   FONT_STYLES,
 } from "../../constants/app-design";
 import { FONT_ELEMENT_KEYS } from "../../types/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
@@ -31,8 +31,7 @@ export function FontSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.4fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
+    <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="base">
           <s-grid gridTemplateColumns="2fr 1.4fr 1fr 0.8fr" gap="small-200">
             <s-text type="strong">Element</s-text>
@@ -97,8 +96,6 @@ export function FontSettingsEditor({ settings, onChange }: Props) {
             </s-grid>
           ))}
         </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+    </SettingsSplit>
   );
 }

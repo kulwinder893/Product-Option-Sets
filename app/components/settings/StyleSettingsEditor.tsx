@@ -1,16 +1,42 @@
 import type { AppSettingsState } from "../../types/app-design";
 import { colorsForMode } from "../../constants/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
   onChange: (next: AppSettingsState) => void;
 };
 
+function Choice({
+  active,
+  title,
+  detail,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  detail: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`osp-choice${active ? " is-active" : ""}`}
+      onClick={onClick}
+    >
+      <strong>{title}</strong>
+      <span>{detail}</span>
+    </button>
+  );
+}
+
 export function StyleSettingsEditor({ settings, onChange }: Props) {
   const style = settings.design.style;
 
-  const patchStyle = (patch: Partial<typeof style>, extraDesign?: Partial<AppSettingsState["design"]>) => {
+  const patchStyle = (
+    patch: Partial<typeof style>,
+    extraDesign?: Partial<AppSettingsState["design"]>,
+  ) => {
     onChange({
       ...settings,
       design: {
@@ -22,50 +48,75 @@ export function StyleSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.2fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
-        <s-stack direction="block" gap="base">
-          <s-select
-            label="Design style"
-            value={style.preset}
-            onChange={(event: Event) =>
-              patchStyle({
-                preset: (event.currentTarget as HTMLSelectElement).value as typeof style.preset,
-              })
-            }
-          >
-            <s-option value="modern">Modern</s-option>
-            <s-option value="classic">Classic</s-option>
-          </s-select>
+    <SettingsSplit settings={settings}>
+      <s-stack direction="block" gap="large">
+        <div>
+          <span className="osp-label">Look</span>
+          <p className="osp-help">
+            Pick a storefront personality. Soft Studio is the new default — calmer than a
+            black-and-white widget.
+          </p>
+          <div className="osp-choices">
+            <Choice
+              active={style.preset === "modern"}
+              title="Soft Studio"
+              detail="Rounded, airy, teal accents"
+              onClick={() => patchStyle({ preset: "modern" })}
+            />
+            <Choice
+              active={style.preset === "classic"}
+              title="Editorial"
+              detail="Sharper corners, quieter contrast"
+              onClick={() => patchStyle({ preset: "classic" })}
+            />
+          </div>
+        </div>
 
-          <s-select
-            label="Theme mode"
-            value={style.mode}
-            onChange={(event: Event) => {
-              const mode = (event.currentTarget as HTMLSelectElement).value as typeof style.mode;
-              patchStyle({ mode }, { colors: colorsForMode(mode) });
-            }}
-          >
-            <s-option value="light">Light</s-option>
-            <s-option value="dark">Dark</s-option>
-          </s-select>
+        <div>
+          <span className="osp-label">Canvas</span>
+          <p className="osp-help">Light is tuned for most Shopify themes. Dark inverts the palette.</p>
+          <div className="osp-choices">
+            <Choice
+              active={style.mode === "light"}
+              title="Daylight"
+              detail="Warm paper white + sage"
+              onClick={() => patchStyle({ mode: "light" }, { colors: colorsForMode("light") })}
+            />
+            <Choice
+              active={style.mode === "dark"}
+              title="Evening"
+              detail="Ink canvas + mint highlights"
+              onClick={() => patchStyle({ mode: "dark" }, { colors: colorsForMode("dark") })}
+            />
+          </div>
+        </div>
 
-          <s-select
-            label="Option values layout"
-            value={style.choiceLayout}
-            onChange={(event: Event) =>
-              patchStyle({
-                choiceLayout: (event.currentTarget as HTMLSelectElement)
-                  .value as typeof style.choiceLayout,
-              })
-            }
-          >
-            <s-option value="horizontal">Horizontal</s-option>
-            <s-option value="vertical">Vertical</s-option>
-          </s-select>
+        <div>
+          <span className="osp-label">Values layout</span>
+          <div className="osp-choices">
+            <Choice
+              active={style.choiceLayout === "horizontal"}
+              title="Row"
+              detail="Checkboxes and radios side by side"
+              onClick={() => patchStyle({ choiceLayout: "horizontal" })}
+            />
+            <Choice
+              active={style.choiceLayout === "vertical"}
+              title="Stack"
+              detail="One choice per line"
+              onClick={() => patchStyle({ choiceLayout: "vertical" })}
+            />
+          </div>
+        </div>
 
-          <s-checkbox
-            label="Show selected value next to option label"
+        <label className="osp-toggle">
+          <span>
+            <strong>Show chosen value next to the label</strong>
+            <p className="osp-help" style={{ margin: "4px 0 0" }}>
+              Helpful for color and image swatches.
+            </p>
+          </span>
+          <s-switch
             {...(style.showSelectedValue ? { checked: true } : {})}
             onChange={(event: Event) =>
               patchStyle({
@@ -73,9 +124,8 @@ export function StyleSettingsEditor({ settings, onChange }: Props) {
               })
             }
           />
-        </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+        </label>
+      </s-stack>
+    </SettingsSplit>
   );
 }

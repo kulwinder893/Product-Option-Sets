@@ -1,6 +1,6 @@
 import type { AppSettingsState, SizeSettings } from "../../types/app-design";
 import { SIZE_FIELDS } from "../../constants/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
@@ -18,8 +18,7 @@ export function SizeSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.2fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
+    <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="base">
           {SIZE_FIELDS.map((field) => (
             <s-number-field
@@ -35,8 +34,6 @@ export function SizeSettingsEditor({ settings, onChange }: Props) {
             />
           ))}
         </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+    </SettingsSplit>
   );
 }

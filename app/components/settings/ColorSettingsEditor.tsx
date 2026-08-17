@@ -1,6 +1,6 @@
 import type { AppSettingsState, ColorSettings } from "../../types/app-design";
 import { COLOR_GROUPS } from "../../constants/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
@@ -50,8 +50,7 @@ export function ColorSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.3fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
+    <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="large">
           {COLOR_GROUPS.map((group) => (
             <s-stack key={group.title} direction="block" gap="small-200">
@@ -67,8 +66,6 @@ export function ColorSettingsEditor({ settings, onChange }: Props) {
             </s-stack>
           ))}
         </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+    </SettingsSplit>
   );
 }

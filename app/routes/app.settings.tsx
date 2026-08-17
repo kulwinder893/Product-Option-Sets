@@ -27,6 +27,7 @@ import { CssSettingsEditor } from "../components/settings/CssSettingsEditor";
 import { TranslationSettingsEditor } from "../components/settings/TranslationSettingsEditor";
 import { AdvancedSettingsEditor } from "../components/settings/AdvancedSettingsEditor";
 import { ApiSettingsEditor } from "../components/settings/ApiSettingsEditor";
+import "../components/settings/settings-ui.css";
 
 type ActionData = {
   ok: boolean;
@@ -132,73 +133,97 @@ export default function SettingsPage() {
 
   const editorProps = { settings, onChange: persist };
 
+  const saveState =
+    fetcher.state !== "idle"
+      ? "saving"
+      : fetcher.data?.ok
+        ? "saved"
+        : fetcher.data && !fetcher.data.ok
+          ? "error"
+          : "idle";
+
   return (
     <s-page heading="Settings">
-      <s-stack direction="block" gap="base">
-        <s-stack direction="inline" gap="small-200">
-          {SETTINGS_SECTIONS.map((item) => (
-            <s-button
-              key={item.id}
-              type="button"
-              variant={section === item.id ? "primary" : "secondary"}
-              onClick={() => setSection(item.id)}
+      <div className="osp-settings">
+        <s-stack direction="block" gap="large">
+          <div className="osp-settings__hero">
+            <div>
+              <p className="osp-settings__kicker">Storefront appearance</p>
+              <h2>Craft how options feel on the product page</h2>
+              <p>
+                A warm daylight canvas with sage accents — easier to scan than a
+                stark black-and-white widget.
+              </p>
+            </div>
+            <span
+              className={`osp-status${saveState === "saving" ? " osp-status--saving" : ""}`}
             >
-              {item.label}
-            </s-button>
-          ))}
-        </s-stack>
+              {saveState === "saving"
+                ? "Saving…"
+                : saveState === "saved"
+                  ? fetcher.data?.message
+                  : saveState === "error"
+                    ? fetcher.data?.message
+                    : "Changes save automatically"}
+            </span>
+          </div>
 
-        {section === "design" ? (
-          <s-stack direction="block" gap="base">
-            <s-stack direction="inline" gap="small-200" alignItems="center">
-              {DESIGN_TABS.map((item) => (
-                <s-button
-                  key={item.id}
+          <div className="osp-sections">
+            {SETTINGS_SECTIONS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`osp-chip${section === item.id ? " is-active" : ""}`}
+                onClick={() => setSection(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {section === "design" ? (
+            <s-stack direction="block" gap="base">
+              <div className="osp-subnav">
+                {DESIGN_TABS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={tab === item.id ? "is-active" : undefined}
+                    onClick={() => setTab(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+                <button
                   type="button"
-                  variant={tab === item.id ? "primary" : "tertiary"}
-                  onClick={() => setTab(item.id)}
-                >
-                  {item.label}
-                </s-button>
-              ))}
-              <div style={{ marginInlineStart: "auto" }}>
-                <s-button
-                  type="button"
-                  variant="tertiary"
-                  tone="critical"
+                  className="osp-reset"
                   onClick={() =>
                     fetcher.submit({ intent: "reset-design" }, { method: "post" })
                   }
                 >
-                  Reset
-                </s-button>
+                  Reset look
+                </button>
               </div>
+
+              {tab === "style" ? <StyleSettingsEditor {...editorProps} /> : null}
+              {tab === "font" ? <FontSettingsEditor {...editorProps} /> : null}
+              {tab === "color" ? <ColorSettingsEditor {...editorProps} /> : null}
+              {tab === "size" ? <SizeSettingsEditor {...editorProps} /> : null}
+              {tab === "shape" ? <ShapeSettingsEditor {...editorProps} /> : null}
+              {tab === "spacing" ? <SpacingSettingsEditor {...editorProps} /> : null}
+              {tab === "css" ? <CssSettingsEditor {...editorProps} /> : null}
             </s-stack>
+          ) : null}
 
-            {tab === "style" ? <StyleSettingsEditor {...editorProps} /> : null}
-            {tab === "font" ? <FontSettingsEditor {...editorProps} /> : null}
-            {tab === "color" ? <ColorSettingsEditor {...editorProps} /> : null}
-            {tab === "size" ? <SizeSettingsEditor {...editorProps} /> : null}
-            {tab === "shape" ? <ShapeSettingsEditor {...editorProps} /> : null}
-            {tab === "spacing" ? <SpacingSettingsEditor {...editorProps} /> : null}
-            {tab === "css" ? <CssSettingsEditor {...editorProps} /> : null}
-          </s-stack>
-        ) : null}
-
-        {section === "translation" ? (
-          <TranslationSettingsEditor {...editorProps} />
-        ) : null}
-        {section === "advanced" ? (
-          <AdvancedSettingsEditor {...editorProps} />
-        ) : null}
-        {section === "api" ? <ApiSettingsEditor /> : null}
-
-        {fetcher.state !== "idle" ? (
-          <s-text color="subdued">Saving…</s-text>
-        ) : fetcher.data?.ok ? (
-          <s-text color="subdued">{fetcher.data.message}</s-text>
-        ) : null}
-      </s-stack>
+          {section === "translation" ? (
+            <TranslationSettingsEditor {...editorProps} />
+          ) : null}
+          {section === "advanced" ? (
+            <AdvancedSettingsEditor {...editorProps} />
+          ) : null}
+          {section === "api" ? <ApiSettingsEditor /> : null}
+        </s-stack>
+      </div>
     </s-page>
   );
 }

@@ -1,6 +1,6 @@
 import type { AppSettingsState, TranslationSettings } from "../../types/app-design";
 import { TRANSLATION_FIELDS } from "../../constants/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
@@ -16,8 +16,7 @@ export function TranslationSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.2fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
+    <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="base">
           <s-paragraph>
             Storefront labels used by the option widget. Leave a field as-is to keep the default.
@@ -33,8 +32,6 @@ export function TranslationSettingsEditor({ settings, onChange }: Props) {
             />
           ))}
         </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+    </SettingsSplit>
   );
 }

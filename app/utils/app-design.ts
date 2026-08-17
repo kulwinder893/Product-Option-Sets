@@ -9,6 +9,7 @@ import {
   FONT_SIZE_MIN,
   FONT_STYLES,
   LIGHT_COLORS,
+  isLegacyLightPalette,
 } from "../constants/app-design";
 import {
   FONT_ELEMENT_KEYS,
@@ -109,6 +110,9 @@ function normalizeColors(raw: unknown): ColorSettings {
   for (const key of Object.keys(LIGHT_COLORS) as Array<keyof ColorSettings>) {
     const value = merged[key];
     next[key] = isHex(value) ? value : LIGHT_COLORS[key];
+  }
+  if (isObject(raw) && isLegacyLightPalette(next)) {
+    return { ...LIGHT_COLORS };
   }
   return next;
 }

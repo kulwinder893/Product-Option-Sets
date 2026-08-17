@@ -13,7 +13,7 @@ export function AdvancedSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-box padding="base" borderWidth="base" borderRadius="base">
+    <div className="osp-card">
       <s-stack direction="block" gap="base">
         <s-checkbox
           label="Show total additional price"
@@ -54,6 +54,6 @@ export function AdvancedSettingsEditor({ settings, onChange }: Props) {
           }
         />
       </s-stack>
-    </s-box>
+    </div>
   );
 }

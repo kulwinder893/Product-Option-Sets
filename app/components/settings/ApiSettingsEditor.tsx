@@ -1,6 +1,6 @@
 export function ApiSettingsEditor() {
   return (
-    <s-box padding="base" borderWidth="base" borderRadius="base">
+    <div className="osp-card">
       <s-stack direction="block" gap="base">
         <s-heading>Storefront app proxy</s-heading>
         <s-paragraph>
@@ -18,6 +18,6 @@ export function ApiSettingsEditor() {
           or add the Product options block.
         </s-paragraph>
       </s-stack>
-    </s-box>
+    </div>
   );
 }

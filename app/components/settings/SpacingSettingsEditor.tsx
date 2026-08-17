@@ -1,6 +1,6 @@
 import type { AppSettingsState, SpacingSettings } from "../../types/app-design";
 import { SPACING_FIELDS } from "../../constants/app-design";
-import { DesignPreview } from "./DesignPreview";
+import { SettingsSplit } from "./SettingsSplit";
 
 type Props = {
   settings: AppSettingsState;
@@ -18,8 +18,7 @@ export function SpacingSettingsEditor({ settings, onChange }: Props) {
   };
 
   return (
-    <s-grid gridTemplateColumns="minmax(0, 1.2fr) minmax(280px, 1fr)" gap="base">
-      <s-box padding="base" borderWidth="base" borderRadius="base">
+    <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="base">
           {SPACING_FIELDS.map((field) => (
             <s-number-field
@@ -35,8 +34,6 @@ export function SpacingSettingsEditor({ settings, onChange }: Props) {
             />
           ))}
         </s-stack>
-      </s-box>
-      <DesignPreview settings={settings} />
-    </s-grid>
+    </SettingsSplit>
   );
 }

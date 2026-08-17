@@ -33,8 +33,14 @@
   color: #d72c0d;
 }
 
-.product-options__addon {
+.product-options__selected-value {
   font-weight: 400;
+  opacity: 0.72;
+}
+
+.product-options__tooltip {
+  margin: 0;
+  font-size: 0.85rem;
   opacity: 0.7;
 }
 

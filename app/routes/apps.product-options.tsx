@@ -41,22 +41,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const shop = session?.shop ?? url.searchParams.get("shop");
   if (!shop) {
-    return jsonResponse({ optionSets: [] }, 401);
+    return jsonResponse({ optionSets: [], design: null }, 401);
   }
 
   const product = readProductContext(url);
   if (!product) {
-    return jsonResponse({ optionSets: [] });
+    return jsonResponse({ optionSets: [], design: null });
   }
 
   try {
-    const optionSets = await storefrontOptionsService.getForProduct(
-      shop,
-      product,
-    );
-    return jsonResponse({ optionSets });
+    const payload = await storefrontOptionsService.getForProduct(shop, product);
+    return jsonResponse(payload);
   } catch (error) {
     console.error("Storefront option lookup failed:", error);
-    return jsonResponse({ optionSets: [] }, 500);
+    return jsonResponse({ optionSets: [], design: null }, 500);
   }
 };

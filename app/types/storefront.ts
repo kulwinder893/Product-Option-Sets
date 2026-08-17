@@ -1,5 +1,6 @@
 import type { FieldType } from "@prisma/client";
 import type { FieldSettings, ProductCondition } from "./field";
+import type { StorefrontDesignPayload } from "./app-design";
 
 /** Product facts sent by the theme extension so conditions can be evaluated. */
 export type StorefrontProductContext = {
@@ -52,6 +53,7 @@ export type StorefrontOptionSet = {
 
 export type StorefrontOptionsPayload = {
   optionSets: StorefrontOptionSet[];
+  design?: StorefrontDesignPayload | null;
 };
 
 export type AssignmentConditions = ProductCondition[];

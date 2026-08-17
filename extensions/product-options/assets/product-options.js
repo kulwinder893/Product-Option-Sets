@@ -127,8 +127,30 @@
         return response.json();
       })
       .then(function (payload) {
-        return (payload && payload.optionSets) || [];
+        return {
+          optionSets: (payload && payload.optionSets) || [],
+          design: (payload && payload.design) || null,
+        };
       });
+  }
+
+  function applyDesign(design) {
+    if (!design) return;
+
+    if (design.googleFontsUrl && !document.querySelector('link[data-product-options-fonts]')) {
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = design.googleFontsUrl;
+      link.setAttribute("data-product-options-fonts", "");
+      document.head.appendChild(link);
+    }
+
+    if (design.css && !document.querySelector("style[data-product-options-design]")) {
+      var style = document.createElement("style");
+      style.setAttribute("data-product-options-design", "");
+      style.textContent = design.css;
+      document.head.appendChild(style);
+    }
   }
 
   /* -------------------------------------------------------------- helpers */
@@ -193,6 +215,10 @@
     if (price) {
       wrapper.appendChild(el("span", ROOT_CLASS + "__addon", price));
     }
+
+    var selected = el("span", ROOT_CLASS + "__selected-value");
+    selected.hidden = true;
+    wrapper.appendChild(selected);
     return wrapper;
   };
 
@@ -261,6 +287,9 @@
       if (settings.min != null) input.min = settings.min;
       if (settings.max != null) input.max = settings.max;
       if (settings.step != null) input.step = settings.step;
+    }
+    if (field.type === "QUANTITY") {
+      input.className += " " + ROOT_CLASS + "__quantity";
     }
     if (field.type === "DATE_PICKER") {
       if (settings.minDate) input.min = settings.minDate;
@@ -571,6 +600,10 @@
     }
 
     wrapper.appendChild(this.labelNode(field));
+    if (field.tooltip) {
+      var info = el("span", ROOT_CLASS + "__tooltip", field.tooltip);
+      wrapper.appendChild(info);
+    }
     if (field.description) {
       wrapper.appendChild(el("p", ROOT_CLASS + "__description", field.description));
     }
@@ -592,6 +625,7 @@
       error: error,
       read: read,
       propertyName: this.propertyNameFor(field),
+      selectedValue: wrapper.querySelector("." + ROOT_CLASS + "__selected-value"),
     });
   };
 
@@ -699,6 +733,10 @@
 
     entries.forEach(function (entry) {
       totalCents += entry.cents;
+      if (entry.control.selectedValue) {
+        entry.control.selectedValue.textContent = entry.value || "";
+        entry.control.selectedValue.hidden = !entry.value;
+      }
       if (!entry.value) return;
       addHiddenInput(entry.control.propertyName, entry.value);
     });
@@ -1267,8 +1305,11 @@
     patchCartRequests();
 
     fetchOptionSets(context)
-      .then(function (optionSets) {
+      .then(function (payload) {
+        var optionSets = payload.optionSets || [];
         if (!optionSets.length) return;
+
+        applyDesign(payload.design);
 
         var renderer = new Renderer(context);
         var root = renderer.render(optionSets);

@@ -1,0 +1,92 @@
+.font-preview {
+  --product-options-accent: #f7b0c4;
+  --product-options-border: rgba(255, 255, 255, 0.22);
+  --product-options-radius: 6px;
+}
+
+.font-preview .product-options__field {
+  display: grid;
+  gap: 6px;
+}
+
+.font-preview .product-options__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.font-preview .product-options__selected-value {
+  opacity: 0.72;
+}
+
+.font-preview .product-options__input,
+.font-preview .product-options__select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--product-options-border);
+  border-radius: var(--product-options-radius);
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.font-preview .product-options__help,
+.font-preview .product-options__tooltip {
+  margin: 0;
+  opacity: 0.7;
+}
+
+.font-preview .product-options__error {
+  margin: 0;
+  color: #ff8a80;
+}
+
+.font-preview .product-options__choices {
+  display: grid;
+  gap: 8px;
+}
+
+.font-preview .product-options__choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.font-preview .product-options__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.font-preview .product-options__swatch-visual {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--product-options-border);
+  display: block;
+}
+
+.font-preview .product-options__swatches--circle .product-options__swatch-visual {
+  border-radius: 50%;
+}
+
+.font-preview .product-options__swatches--square .product-options__swatch-visual {
+  border-radius: 4px;
+}
+
+.font-preview .product-options__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.font-preview .product-options__button {
+  padding: 8px 14px;
+  border: 1px solid var(--product-options-border);
+  border-radius: var(--product-options-radius);
+}
+
+.font-preview .product-options__total {
+  padding-top: 10px;
+  border-top: 1px solid var(--product-options-border);
+}

@@ -1,7 +1,7 @@
 import type { FieldSettings, ProductCondition } from "../types/field";
 import type {
   StorefrontField,
-  StorefrontOptionSet,
+  StorefrontOptionsPayload,
   StorefrontProductContext,
 } from "../types/storefront";
 import {
@@ -9,6 +9,7 @@ import {
   type MatchableOptionSet,
 } from "../repositories/storefront-options.repository";
 import { assertShop, safeJsonParse } from "../utils/errors";
+import { settingsService } from "./settings.service";
 
 /** Field types whose storefront rendering is not implemented yet. */
 const UNSUPPORTED_TYPES = new Set(["FILE_UPLOAD", "PRODUCT_PICKER"]);
@@ -93,16 +94,16 @@ export class StorefrontOptionsService {
   async getForProduct(
     shop: string,
     product: StorefrontProductContext,
-  ): Promise<StorefrontOptionSet[]> {
+  ): Promise<StorefrontOptionsPayload> {
     assertShop(shop);
 
     const productGid = `gid://shopify/Product/${product.productId}`;
-    const candidates = await storefrontOptionsRepository.findCandidates(
-      shop,
-      productGid,
-    );
+    const [candidates, design] = await Promise.all([
+      storefrontOptionsRepository.findCandidates(shop, productGid),
+      settingsService.getStorefrontDesign(shop),
+    ]);
 
-    return candidates
+    const optionSets = candidates
       .filter((optionSet) => {
         if (optionSet.assignmentMode !== "CONDITIONS") return true;
         const conditions = safeJsonParse<ProductCondition[]>(
@@ -119,6 +120,8 @@ export class StorefrontOptionsService {
           .map(toStorefrontField),
       }))
       .filter((optionSet) => optionSet.fields.length > 0);
+
+    return { optionSets, design };
   }
 }
 

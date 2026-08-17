@@ -129,6 +129,7 @@ export function DesignPreview({ settings }: Props) {
             <span>{design.style.preset === "modern" ? "Soft Studio" : "Editorial"}</span>
           </div>
 
+          <div className="osp-preview-phone__body">
           <div
             id={scopeId}
             className={`product-options${hideSelected}`}
@@ -217,6 +218,7 @@ export function DesignPreview({ settings }: Props) {
               {translations.optionsTotal}:{" "}
               <span className="product-options__total-price">+$5.00</span>
             </div>
+          </div>
           </div>
         </div>
       </div>

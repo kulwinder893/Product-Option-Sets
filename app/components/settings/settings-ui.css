@@ -220,10 +220,15 @@
 .osp-preview-phone__bar {
   display: flex;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 10px 16px;
   background: #f4efe7;
   font-size: 12px;
   color: var(--osp-muted);
+}
+
+/* Equal inset so swatch rings and full-width inputs don't clip. */
+.osp-preview-phone__body {
+  padding: 18px 20px 20px;
 }
 
 .osp-toggle {
@@ -241,11 +246,11 @@
   grid-template-columns: 1fr 1fr 1fr;
 }
 
-/* Preview uses the real storefront widget CSS. Only page spacing is reset here. */
+/* Preview uses the real storefront widget CSS. Inset comes from __body, not here. */
 .osp-preview-phone .product-options {
   margin: 0;
-  padding: 16px;
-  background: #fffdf9;
+  padding: 0;
+  background: transparent;
   color: #243040;
 }
 

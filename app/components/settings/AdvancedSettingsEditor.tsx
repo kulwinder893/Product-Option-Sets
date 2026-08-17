@@ -1,11 +1,6 @@
-import type { AdvancedSettings, AppSettingsState } from "../../types/app-design";
+import type { AdvancedSettings, SettingsEditorProps } from "../../types/app-design";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function AdvancedSettingsEditor({ settings, onChange }: Props) {
+export function AdvancedSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const advanced = settings.advanced;
 
   const patch = (next: Partial<AdvancedSettings>) => {

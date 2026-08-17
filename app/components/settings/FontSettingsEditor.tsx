@@ -1,4 +1,4 @@
-import type { FontElementKey, FontSettings, FontStyleId, AppSettingsState } from "../../types/app-design";
+import type { FontElementKey, FontSettings, FontStyleId, SettingsEditorProps } from "../../types/app-design";
 import {
   FONT_ELEMENT_LABELS,
   FONT_FAMILIES,
@@ -9,12 +9,7 @@ import {
 import { FONT_ELEMENT_KEYS } from "../../types/app-design";
 import { SettingsSplit } from "./SettingsSplit";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function FontSettingsEditor({ settings, onChange }: Props) {
+export function FontSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const fonts = settings.design.fonts;
 
   const updateToken = (

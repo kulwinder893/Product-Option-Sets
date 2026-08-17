@@ -1,13 +1,8 @@
-import type { AppSettingsState, TranslationSettings } from "../../types/app-design";
+import type { SettingsEditorProps, TranslationSettings } from "../../types/app-design";
 import { TRANSLATION_FIELDS } from "../../constants/app-design";
 import { SettingsSplit } from "./SettingsSplit";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function TranslationSettingsEditor({ settings, onChange }: Props) {
+export function TranslationSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const update = (key: keyof TranslationSettings, value: string) => {
     onChange({
       ...settings,

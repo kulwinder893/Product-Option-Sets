@@ -1,3 +1,8 @@
+/*
+  Settings admin chrome (hero, chips, live preview frame).
+  Storefront widget styles live in extensions/product-options/assets/product-options.css.
+*/
+
 .osp-settings {
   --osp-bg: #f6f3ee;
   --osp-card: #fffdf9;
@@ -232,148 +237,19 @@
   margin-top: 8px;
 }
 
-.font-preview.osp-storefront {
-  --product-options-accent: #3d9b8f;
-  --product-options-border: #d9e2ec;
-  --product-options-radius: 12px;
+.osp-choices--3 {
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
-.font-preview.osp-storefront .product-options__field {
-  display: grid;
-  gap: 6px;
-}
-
-.font-preview.osp-storefront .product-options__label {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.font-preview.osp-storefront .product-options__input,
-.font-preview.osp-storefront .product-options__select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--product-options-border);
-  border-radius: var(--product-options-radius);
-  background: #fff;
-  color: inherit;
-  box-sizing: border-box;
-}
-
-.font-preview.osp-storefront .product-options__help,
-.font-preview.osp-storefront .product-options__tooltip {
+/* Preview uses the real storefront widget CSS. Only page spacing is reset here. */
+.osp-preview-phone .product-options {
   margin: 0;
+  padding: 16px;
+  background: #fffdf9;
+  color: #243040;
 }
 
-.font-preview.osp-storefront .product-options__error {
-  margin: 0;
-}
-
-.font-preview.osp-storefront .product-options__choices,
-.font-preview.osp-storefront .product-options__swatches,
-.font-preview.osp-storefront .product-options__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.font-preview.osp-storefront .product-options__choice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.font-preview.osp-storefront .product-options__swatch-visual {
-  width: 36px;
-  height: 36px;
-  display: block;
-  border: 1px solid var(--product-options-border);
-}
-
-.font-preview.osp-storefront .product-options__swatches--circle .product-options__swatch-visual {
-  border-radius: 50%;
-}
-
-.font-preview.osp-storefront .product-options__button {
-  padding: 8px 14px;
-  border: 1px solid var(--product-options-border);
-  border-radius: 12px;
-}
-
-.font-preview.osp-storefront .product-options__badge {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: #f1d9c0;
-  color: #6b3f24;
-  line-height: 1.4;
-}
-
-.font-preview.osp-storefront .product-options__filename {
-  display: block;
-  margin-top: 6px;
-}
-
-.font-preview.osp-storefront.product-options--hide-selected .product-options__selected-value {
-  display: none;
-}
-
-.font-preview.osp-storefront .product-options__selected-value {
-  font-size: 12px;
-  color: #5b7c99;
-}
-
-.font-preview.osp-storefront .product-options__swatch {
-  position: relative;
-}
-
-.font-preview.osp-storefront .product-options__swatch-input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.font-preview.osp-storefront .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual {
-  box-shadow: 0 0 0 2px #fffdf9, 0 0 0 4px #3d9b8f;
-}
-
-.font-preview.osp-storefront .product-options__button.is-selected {
-  background: #3d9b8f;
-  border-color: #3d9b8f;
-  color: #fffdf9;
-}
-
-.font-preview.osp-storefront .product-options__switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.font-preview.osp-storefront .product-options__switch-input {
-  accent-color: #3d9b8f;
-}
-
-.font-preview.osp-storefront .product-options__switch-track {
-  width: 36px;
-  height: 20px;
-  border-radius: 999px;
-  background: #3d9b8f;
-}
-
-.font-preview.osp-storefront .product-options__total {
-  margin-top: 8px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #f4f8f6;
-  border: 1px solid #c9ded6;
-}
-
-.font-preview.osp-storefront .product-options__total-price {
-  color: #1f8a70;
-  font-weight: 700;
-}
-
-.font-preview.osp-storefront .product-options__error {
-  color: #e85d4c;
+.osp-preview-phone .product-options[data-mode="dark"] {
+  background: #161a1f;
+  color: #eef2f4;
 }

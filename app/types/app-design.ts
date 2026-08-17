@@ -125,6 +125,11 @@ export type AppSettingsState = {
   advanced: AdvancedSettings;
 };
 
+export type SettingsEditorProps = {
+  settings: AppSettingsState;
+  onChange: (next: AppSettingsState) => void;
+};
+
 export type StorefrontDesignPayload = {
   css: string;
   googleFontsUrl: string | null;

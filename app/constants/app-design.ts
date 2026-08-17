@@ -166,10 +166,10 @@ export const DEFAULT_SHAPES: ShapeSettings = {
 };
 
 export const DEFAULT_SPACING: SpacingSettings = {
-  fieldGap: 16,
+  fieldGap: 22,
   choiceGap: 12,
   swatchGap: 10,
-  labelGap: 6,
+  labelGap: 10,
   widgetPadding: 0,
 };
 
@@ -352,6 +352,21 @@ export const LEGACY_LIGHT_COLORS: ColorSettings = {
 export function isLegacyLightPalette(colors: ColorSettings): boolean {
   return (Object.keys(LEGACY_LIGHT_COLORS) as Array<keyof ColorSettings>).every(
     (key) => colors[key].toUpperCase() === LEGACY_LIGHT_COLORS[key].toUpperCase(),
+  );
+}
+
+/** Previous defaults: labels sat too close to controls and blocks felt cramped. */
+export const LEGACY_SPACING: SpacingSettings = {
+  fieldGap: 16,
+  choiceGap: 12,
+  swatchGap: 10,
+  labelGap: 6,
+  widgetPadding: 0,
+};
+
+export function isLegacySpacing(spacing: SpacingSettings): boolean {
+  return (Object.keys(LEGACY_SPACING) as Array<keyof SpacingSettings>).every(
+    (key) => spacing[key] === LEGACY_SPACING[key],
   );
 }
 

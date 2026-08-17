@@ -1,12 +1,7 @@
-import type { AppSettingsState } from "../../types/app-design";
+import type { SettingsEditorProps } from "../../types/app-design";
 import { SettingsSplit } from "./SettingsSplit";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function CssSettingsEditor({ settings, onChange }: Props) {
+export function CssSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   return (
     <SettingsSplit settings={settings}>
         <s-stack direction="block" gap="base">

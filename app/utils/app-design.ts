@@ -9,7 +9,9 @@ import {
   FONT_SIZE_MIN,
   FONT_STYLES,
   LIGHT_COLORS,
+  DEFAULT_SPACING,
   isLegacyLightPalette,
+  isLegacySpacing,
 } from "../constants/app-design";
 import {
   FONT_ELEMENT_KEYS,
@@ -138,12 +140,20 @@ export function normalizeAppDesign(raw: unknown): AppDesignSettings {
       DEFAULT_DESIGN.shapes as unknown as Record<string, unknown>,
       source.shapes,
     ) as unknown as ShapeSettings,
-    spacing: mergeRecord(
-      DEFAULT_DESIGN.spacing as unknown as Record<string, unknown>,
-      source.spacing,
-    ) as unknown as SpacingSettings,
+    spacing: normalizeSpacing(source.spacing),
     customCss: typeof source.customCss === "string" ? source.customCss : "",
   };
+}
+
+function normalizeSpacing(raw: unknown): SpacingSettings {
+  const spacing = mergeRecord(
+    DEFAULT_SPACING as unknown as Record<string, unknown>,
+    raw,
+  ) as unknown as SpacingSettings;
+  if (isObject(raw) && isLegacySpacing(spacing)) {
+    return { ...DEFAULT_SPACING };
+  }
+  return spacing;
 }
 
 export function normalizeTranslations(raw: unknown): TranslationSettings {
@@ -224,18 +234,16 @@ function rootSelector(scope?: string) {
   return scope || ".product-options";
 }
 
-export function designToCss(design: AppDesignSettings, scope?: string): string {
+function cssVariables(design: AppDesignSettings): string {
   const { colors, sizes, shapes, spacing, style } = design;
-  const root = rootSelector(scope);
   const swatchRadius =
     shapes.swatchShape === "circle"
       ? "50%"
       : shapes.swatchShape === "rounded"
         ? `${shapes.swatchRadius}px`
         : "0px";
-  const choiceDirection = style.choiceLayout === "horizontal" ? "row" : "column";
 
-  const variables = `${root} {
+  return `
   --po-color-label: ${colors.optionLabel};
   --po-color-value: ${colors.optionValue};
   --po-color-selected: ${colors.selectedValue};
@@ -278,104 +286,27 @@ export function designToCss(design: AppDesignSettings, scope?: string): string {
   --po-swatch-gap: ${spacing.swatchGap}px;
   --po-label-gap: ${spacing.labelGap}px;
   --po-widget-padding: ${spacing.widgetPadding}px;
-  --po-choice-direction: ${choiceDirection};
+  --po-choice-direction: ${style.choiceLayout === "horizontal" ? "row" : "column"};
   --product-options-accent: ${colors.inputBorderFocus};
   --product-options-border: ${colors.inputBorder};
   --product-options-radius: ${shapes.inputRadius}px;
+`.trimEnd();
+}
+
+/** Turns App Design into CSS. Layout is in product-options.css; this only sets variables + fonts. */
+export function designToCss(design: AppDesignSettings, scope?: string): string {
+  const root = rootSelector(scope);
+  const hideSelected = design.style.showSelectedValue
+    ? ""
+    : `\n${scopedSelector(".product-options__selected-value", scope)} { display: none; }`;
+  const fonts = fontRules(design.fonts, scope);
+  const custom = design.customCss?.trim() ? `\n${design.customCss}` : "";
+  return `${root} {
+${cssVariables(design)}
   gap: var(--po-field-gap);
   padding: var(--po-widget-padding);
 }
-
-${scopedSelector(".product-options__label", scope)} { gap: var(--po-label-gap); }
-${scopedSelector(".product-options__label-text", scope)} { color: var(--po-color-label); }
-${scopedSelector(".product-options__choice-label", scope)} { color: var(--po-color-value); }
-${scopedSelector(".product-options__selected-value", scope)} { color: var(--po-color-selected); }
-${scopedSelector(".product-options__help, .product-options__description", scope)} { color: var(--po-color-help); }
-${scopedSelector(".product-options__tooltip", scope)} { color: var(--po-color-tooltip); }
-${scopedSelector(".product-options__error", scope)} { color: var(--po-color-error); }
-${scopedSelector(".product-options__total", scope)} {
-  background: var(--po-total-bg);
-  color: var(--po-total-text);
-  border: 1px solid var(--po-total-border);
-  border-radius: var(--po-total-radius);
-  padding: 10px 12px;
-}
-${scopedSelector(".product-options__addon, .product-options__total-price", scope)} { color: var(--po-total-price); }
-${scopedSelector(".product-options__input, .product-options__select, .product-options__textarea", scope)} {
-  min-height: var(--po-input-height);
-  color: var(--po-input-text);
-  border-color: var(--po-input-border);
-  background: var(--po-input-bg);
-  border-radius: var(--po-input-radius);
-}
-${scopedSelector(".product-options__select", scope)} { min-height: var(--po-dropdown-height); }
-${scopedSelector(".product-options__quantity", scope)} { min-height: var(--po-quantity-height); }
-${scopedSelector(".product-options__input::placeholder", scope)} { color: var(--po-input-placeholder); }
-${scopedSelector(".product-options__input:focus, .product-options__select:focus", scope)} {
-  border-color: var(--po-input-border-focus);
-  background: var(--po-input-bg-focus);
-  outline-color: var(--po-input-border-focus);
-}
-${scopedSelector(".product-options__swatches--color .product-options__swatch-visual", scope)} {
-  border-color: var(--po-color-swatch-border);
-}
-${scopedSelector(".product-options__swatches--image .product-options__swatch-visual, .product-options__swatches--square .product-options__swatch-visual", scope)} {
-  border-color: var(--po-image-swatch-border);
-  border-radius: var(--po-swatch-radius);
-}
-${scopedSelector(".product-options__swatch-visual", scope)} {
-  width: var(--po-swatch-size);
-  height: var(--po-swatch-size);
-  border-radius: var(--po-swatch-radius);
-}
-${scopedSelector(".product-options__swatches--color .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual, .product-options__swatches--circle .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual", scope)} {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--po-color-swatch-border-selected);
-}
-${scopedSelector(".product-options__swatches--image .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual, .product-options__swatches--square .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual", scope)} {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--po-image-swatch-border-selected);
-}
-${scopedSelector(".product-options__button", scope)} {
-  min-height: var(--po-button-min-height);
-  background: var(--po-button-bg);
-  color: var(--po-button-text);
-  border-color: var(--po-button-border);
-  border-radius: var(--po-button-radius);
-}
-${scopedSelector(".product-options__button.is-selected, .product-options__button:has(.product-options__button-input:checked)", scope)} {
-  background: var(--po-button-bg-selected);
-  color: var(--po-button-text-selected);
-  border-color: var(--po-button-bg-selected);
-}
-${scopedSelector(".product-options__choice-input", scope)} {
-  width: var(--po-checkbox-size);
-  height: var(--po-checkbox-size);
-}
-${scopedSelector(".product-options__choices", scope)} {
-  display: flex;
-  flex-direction: var(--po-choice-direction);
-  flex-wrap: wrap;
-  gap: var(--po-choice-gap);
-}
-${scopedSelector(".product-options__swatches", scope)} { gap: var(--po-swatch-gap); }
-${scopedSelector(".product-options__switch-input:checked + .product-options__switch-track", scope)} {
-  background: var(--po-switch-on);
-}
-${scopedSelector(".product-options__upload", scope)} {
-  min-height: var(--po-upload-height);
-}
-${scopedSelector(".product-options--hide-selected .product-options__selected-value", scope)} {
-  display: none;
-}
-`;
-
-  const fonts = fontRules(design.fonts, scope);
-  const custom = design.customCss?.trim() ? `\n${design.customCss}` : "";
-  return `${variables}\n${fonts}${custom}`;
-}
-
-/** @deprecated use designToCss */
-export function fontSettingsToCss(fonts: FontSettings, scope?: string): string {
-  return fontRules(fonts, scope);
+${fonts}${hideSelected}${custom}`;
 }
 
 export function toStorefrontDesign(

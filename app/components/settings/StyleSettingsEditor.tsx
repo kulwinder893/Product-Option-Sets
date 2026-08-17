@@ -1,41 +1,14 @@
-import type { AppSettingsState } from "../../types/app-design";
+import type { SettingsEditorProps } from "../../types/app-design";
 import { colorsForMode } from "../../constants/app-design";
 import { SettingsSplit } from "./SettingsSplit";
+import { ChoiceCard } from "./ChoiceCard";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-function Choice({
-  active,
-  title,
-  detail,
-  onClick,
-}: {
-  active: boolean;
-  title: string;
-  detail: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`osp-choice${active ? " is-active" : ""}`}
-      onClick={onClick}
-    >
-      <strong>{title}</strong>
-      <span>{detail}</span>
-    </button>
-  );
-}
-
-export function StyleSettingsEditor({ settings, onChange }: Props) {
+export function StyleSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const style = settings.design.style;
 
   const patchStyle = (
     patch: Partial<typeof style>,
-    extraDesign?: Partial<AppSettingsState["design"]>,
+    extraDesign?: Partial<typeof settings.design>,
   ) => {
     onChange({
       ...settings,
@@ -57,13 +30,13 @@ export function StyleSettingsEditor({ settings, onChange }: Props) {
             black-and-white widget.
           </p>
           <div className="osp-choices">
-            <Choice
+            <ChoiceCard
               active={style.preset === "modern"}
               title="Soft Studio"
               detail="Rounded, airy, teal accents"
               onClick={() => patchStyle({ preset: "modern" })}
             />
-            <Choice
+            <ChoiceCard
               active={style.preset === "classic"}
               title="Editorial"
               detail="Sharper corners, quieter contrast"
@@ -76,13 +49,13 @@ export function StyleSettingsEditor({ settings, onChange }: Props) {
           <span className="osp-label">Canvas</span>
           <p className="osp-help">Light is tuned for most Shopify themes. Dark inverts the palette.</p>
           <div className="osp-choices">
-            <Choice
+            <ChoiceCard
               active={style.mode === "light"}
               title="Daylight"
               detail="Warm paper white + sage"
               onClick={() => patchStyle({ mode: "light" }, { colors: colorsForMode("light") })}
             />
-            <Choice
+            <ChoiceCard
               active={style.mode === "dark"}
               title="Evening"
               detail="Ink canvas + mint highlights"
@@ -94,13 +67,13 @@ export function StyleSettingsEditor({ settings, onChange }: Props) {
         <div>
           <span className="osp-label">Values layout</span>
           <div className="osp-choices">
-            <Choice
+            <ChoiceCard
               active={style.choiceLayout === "horizontal"}
               title="Row"
               detail="Checkboxes and radios side by side"
               onClick={() => patchStyle({ choiceLayout: "horizontal" })}
             />
-            <Choice
+            <ChoiceCard
               active={style.choiceLayout === "vertical"}
               title="Stack"
               detail="One choice per line"

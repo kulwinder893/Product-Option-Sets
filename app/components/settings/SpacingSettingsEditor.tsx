@@ -1,13 +1,8 @@
-import type { AppSettingsState, SpacingSettings } from "../../types/app-design";
+import type { SettingsEditorProps, SpacingSettings } from "../../types/app-design";
 import { SPACING_FIELDS } from "../../constants/app-design";
 import { SettingsSplit } from "./SettingsSplit";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function SpacingSettingsEditor({ settings, onChange }: Props) {
+export function SpacingSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const spacing = settings.design.spacing;
 
   const update = (key: keyof SpacingSettings, value: number) => {

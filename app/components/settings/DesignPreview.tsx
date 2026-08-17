@@ -1,31 +1,113 @@
+import type { ReactNode } from "react";
 import { useEffect, useId } from "react";
 import type { AppSettingsState } from "../../types/app-design";
 import { designToCss, googleFontsUrl } from "../../utils/app-design";
-import "./font-preview.css";
-import "./settings-ui.css";
+import "../../../extensions/product-options/assets/product-options.css";
 
 type Props = {
   settings: AppSettingsState;
 };
 
+function loadGoogleFont(url: string | null) {
+  if (!url) return;
+  if (document.querySelector(`link[data-po-google-fonts="${url}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = url;
+  link.setAttribute("data-po-google-fonts", url);
+  document.head.appendChild(link);
+}
+
+function Field({
+  title,
+  selected,
+  badge,
+  tooltip,
+  children,
+}: {
+  title: string;
+  selected?: string;
+  badge?: string;
+  tooltip?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="product-options__field">
+      <div className="product-options__label">
+        <span className="product-options__label-text">{title}</span>
+        {badge ? <span className="product-options__badge">{badge}</span> : null}
+        {tooltip ? <span className="product-options__tooltip">{tooltip}</span> : null}
+        {selected ? <span className="product-options__selected-value">{selected}</span> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Choice({
+  type,
+  label,
+  checked = false,
+}: {
+  type: "checkbox" | "radio";
+  label: string;
+  checked?: boolean;
+}) {
+  return (
+    <label className="product-options__choice">
+      <input
+        className="product-options__choice-input"
+        type={type}
+        defaultChecked={checked}
+        readOnly
+      />
+      <span className="product-options__choice-label">{label}</span>
+    </label>
+  );
+}
+
+function Swatches({
+  name,
+  colors,
+  shape,
+  kind,
+}: {
+  name: string;
+  colors: string[];
+  shape: string;
+  kind: "color" | "image";
+}) {
+  return (
+    <div
+      className={`product-options__swatches product-options__swatches--${shape} product-options__swatches--${kind}`}
+    >
+      {colors.map((color, index) => (
+        <label key={color} className="product-options__swatch">
+          <input
+            className="product-options__swatch-input"
+            type="radio"
+            name={name}
+            defaultChecked={index === 0}
+            readOnly
+          />
+          <span className="product-options__swatch-visual" style={{ background: color }} />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export function DesignPreview({ settings }: Props) {
   const scopeId = useId().replace(/:/g, "");
-  const css = designToCss(settings.design, `#${scopeId}`);
-  const fontsUrl = googleFontsUrl(settings.design.fonts);
   const { translations, design } = settings;
   const dark = design.style.mode === "dark";
+  const fontsUrl = googleFontsUrl(design.fonts);
+  const hideSelected = design.style.showSelectedValue
+    ? ""
+    : " product-options--hide-selected";
 
   useEffect(() => {
-    if (!fontsUrl) return;
-    const existing = document.querySelector<HTMLLinkElement>(
-      `link[data-po-google-fonts="${fontsUrl}"]`,
-    );
-    if (existing) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = fontsUrl;
-    link.setAttribute("data-po-google-fonts", fontsUrl);
-    document.head.appendChild(link);
+    loadGoogleFont(fontsUrl);
   }, [fontsUrl]);
 
   return (
@@ -37,153 +119,99 @@ export function DesignPreview({ settings }: Props) {
         </s-stack>
         <s-badge tone="success">{dark ? "Evening" : "Daylight"}</s-badge>
       </div>
-      <style>{css}</style>
+
+      <style>{designToCss(design, `#${scopeId}`)}</style>
+
       <div className="osp-preview-canvas">
         <div className="osp-preview-phone">
           <div className="osp-preview-phone__bar">
             <span>Product options</span>
             <span>{design.style.preset === "modern" ? "Soft Studio" : "Editorial"}</span>
           </div>
+
           <div
             id={scopeId}
-            className={`product-options font-preview osp-storefront${design.style.showSelectedValue ? "" : " product-options--hide-selected"}`}
-            style={{
-              padding: 16,
-              background: dark ? "#161a1f" : "#fffdf9",
-              color: dark ? "#eef2f4" : "#243040",
-            }}
+            className={`product-options${hideSelected}`}
+            data-mode={dark ? "dark" : "light"}
           >
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Text box</span>
-                <span className="product-options__selected-value">Sample</span>
-              </label>
+            <Field title="Text box" selected="Sample">
               <input className="product-options__input" placeholder="Type here" readOnly />
               <p className="product-options__help">Help text</p>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Color swatch</span>
-              </label>
-              <div className="product-options__swatches product-options__swatches--circle product-options__swatches--color">
-                {["#efc9b8", "#9ec5c0", "#c9b8e3"].map((color, index) => (
-                  <label key={color} className="product-options__swatch">
-                    <input
-                      className="product-options__swatch-input"
-                      type="radio"
-                      name={`preview-color-${scopeId}`}
-                      defaultChecked={index === 0}
-                      readOnly
-                    />
-                    <span className="product-options__swatch-visual" style={{ background: color }} />
-                  </label>
-                ))}
-              </div>
-            </div>
+            <Field title="Color swatch">
+              <Swatches
+                name={`${scopeId}-color`}
+                colors={["#efc9b8", "#9ec5c0", "#c9b8e3"]}
+                shape={design.shapes.swatchShape}
+                kind="color"
+              />
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Image swatches</span>
-              </label>
-              <div className="product-options__swatches product-options__swatches--square product-options__swatches--image">
-                {["#e6d5c3", "#d3c2ae", "#c0ad98"].map((color, index) => (
-                  <label key={color} className="product-options__swatch">
-                    <input
-                      className="product-options__swatch-input"
-                      type="radio"
-                      name={`preview-image-${scopeId}`}
-                      defaultChecked={index === 0}
-                      readOnly
-                    />
-                    <span className="product-options__swatch-visual" style={{ background: color }} />
-                  </label>
-                ))}
-              </div>
-            </div>
+            <Field title="Image swatches">
+              <Swatches
+                name={`${scopeId}-image`}
+                colors={["#e6d5c3", "#d3c2ae", "#c0ad98"]}
+                shape={design.shapes.swatchShape}
+                kind="image"
+              />
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Dropdown</span>
-                <span className="product-options__tooltip">i</span>
-              </label>
+            <Field title="Dropdown" tooltip="i">
               <select className="product-options__input product-options__select" disabled>
                 <option>{translations.pleaseSelect}</option>
               </select>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Checkbox</span>
-                <span className="product-options__badge">New</span>
-                <span className="product-options__selected-value">Option 1</span>
-              </label>
+            <Field title="Checkbox" badge="New" selected="Option 1">
               <div className="product-options__choices">
-                <label className="product-options__choice">
-                  <input className="product-options__choice-input" type="checkbox" defaultChecked readOnly />
-                  <span className="product-options__choice-label">Option 1</span>
-                </label>
-                <label className="product-options__choice">
-                  <input className="product-options__choice-input" type="checkbox" readOnly />
-                  <span className="product-options__choice-label">Option 2</span>
-                </label>
+                <Choice type="checkbox" label="Option 1" checked />
+                <Choice type="checkbox" label="Option 2" />
               </div>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Radio buttons</span>
-              </label>
+            <Field title="Radio buttons">
               <div className="product-options__choices">
-                <label className="product-options__choice">
-                  <input className="product-options__choice-input" type="radio" defaultChecked readOnly />
-                  <span className="product-options__choice-label">Option 1</span>
-                </label>
-                <label className="product-options__choice">
-                  <input className="product-options__choice-input" type="radio" readOnly />
-                  <span className="product-options__choice-label">Option 2</span>
-                </label>
+                <Choice type="radio" label="Option 1" checked />
+                <Choice type="radio" label="Option 2" />
               </div>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Buttons</span>
-              </label>
+            <Field title="Buttons">
               <div className="product-options__buttons">
                 <span className="product-options__button is-selected">Option 1</span>
                 <span className="product-options__button">Option 2</span>
               </div>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Switch</span>
-              </label>
+            <Field title="Switch">
               <label className="product-options__switch">
-                <input className="product-options__switch-input" type="checkbox" defaultChecked readOnly />
+                <input
+                  className="product-options__switch-input"
+                  type="checkbox"
+                  defaultChecked
+                  readOnly
+                />
                 <span className="product-options__switch-track" />
                 <span className="product-options__choice-label">{translations.yes}</span>
               </label>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">Quantity</span>
-              </label>
-              <input className="product-options__input product-options__quantity" defaultValue="1" readOnly />
+            <Field title="Quantity">
+              <input
+                className="product-options__input product-options__quantity"
+                defaultValue="1"
+                readOnly
+              />
               <p className="product-options__error">{translations.errorRequired}</p>
-            </div>
+            </Field>
 
-            <div className="product-options__field">
-              <label className="product-options__label">
-                <span className="product-options__label-text">File upload</span>
-              </label>
+            <Field title="File upload">
               <button type="button" className="product-options__button product-options__upload">
                 {translations.uploadFile}
               </button>
               <span className="product-options__filename">sample.png</span>
-            </div>
+            </Field>
 
             <div className="product-options__total">
               {translations.optionsTotal}:{" "}

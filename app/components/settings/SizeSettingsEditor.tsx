@@ -1,13 +1,8 @@
-import type { AppSettingsState, SizeSettings } from "../../types/app-design";
+import type { SettingsEditorProps, SizeSettings } from "../../types/app-design";
 import { SIZE_FIELDS } from "../../constants/app-design";
 import { SettingsSplit } from "./SettingsSplit";
 
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
-
-export function SizeSettingsEditor({ settings, onChange }: Props) {
+export function SizeSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const sizes = settings.design.sizes;
 
   const update = (key: keyof SizeSettings, value: number) => {

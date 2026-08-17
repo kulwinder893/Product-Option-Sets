@@ -1,11 +1,6 @@
-import type { AppSettingsState, ColorSettings } from "../../types/app-design";
+import type { ColorSettings, SettingsEditorProps } from "../../types/app-design";
 import { COLOR_GROUPS } from "../../constants/app-design";
 import { SettingsSplit } from "./SettingsSplit";
-
-type Props = {
-  settings: AppSettingsState;
-  onChange: (next: AppSettingsState) => void;
-};
 
 function ColorRow({
   label,
@@ -39,7 +34,7 @@ function ColorRow({
   );
 }
 
-export function ColorSettingsEditor({ settings, onChange }: Props) {
+export function ColorSettingsEditor({ settings, onChange }: SettingsEditorProps) {
   const colors = settings.design.colors;
 
   const update = (key: keyof ColorSettings, value: string) => {

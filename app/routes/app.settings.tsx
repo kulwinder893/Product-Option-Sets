@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import { useEffect, useRef, useState } from "react";
 import type {
   HeadersFunction,
@@ -16,7 +17,7 @@ import {
 } from "../constants/app-design";
 import { AppError } from "../utils/errors";
 import { normalizeAppSettings } from "../utils/app-design";
-import type { AppSettingsState } from "../types/app-design";
+import type { AppSettingsState, SettingsEditorProps } from "../types/app-design";
 import { StyleSettingsEditor } from "../components/settings/StyleSettingsEditor";
 import { FontSettingsEditor } from "../components/settings/FontSettingsEditor";
 import { ColorSettingsEditor } from "../components/settings/ColorSettingsEditor";
@@ -33,6 +34,16 @@ type ActionData = {
   ok: boolean;
   message: string;
   settings?: AppSettingsState;
+};
+
+const DESIGN_EDITORS: Record<DesignTabId, ComponentType<SettingsEditorProps>> = {
+  style: StyleSettingsEditor,
+  font: FontSettingsEditor,
+  color: ColorSettingsEditor,
+  size: SizeSettingsEditor,
+  shape: ShapeSettingsEditor,
+  spacing: SpacingSettingsEditor,
+  css: CssSettingsEditor,
 };
 
 function isSection(value: string | null): value is SettingsSectionId {
@@ -88,12 +99,10 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(initial);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const section = isSection(searchParams.get("section"))
-    ? searchParams.get("section")!
-    : "design";
-  const tab = isDesignTab(searchParams.get("tab"))
-    ? searchParams.get("tab")!
-    : "style";
+  const sectionParam = searchParams.get("section");
+  const tabParam = searchParams.get("tab");
+  const section: SettingsSectionId = isSection(sectionParam) ? sectionParam : "design";
+  const tab: DesignTabId = isDesignTab(tabParam) ? tabParam : "style";
 
   useEffect(() => {
     setSettings(initial);
@@ -132,15 +141,16 @@ export default function SettingsPage() {
   };
 
   const editorProps = { settings, onChange: persist };
-
-  const saveState =
+  const DesignEditor = DESIGN_EDITORS[tab];
+  const saveLabel =
     fetcher.state !== "idle"
-      ? "saving"
+      ? "Saving…"
       : fetcher.data?.ok
-        ? "saved"
+        ? fetcher.data.message
         : fetcher.data && !fetcher.data.ok
-          ? "error"
-          : "idle";
+          ? fetcher.data.message
+          : "Changes save automatically";
+  const saving = fetcher.state !== "idle";
 
   return (
     <s-page heading="Settings">
@@ -155,16 +165,8 @@ export default function SettingsPage() {
                 stark black-and-white widget.
               </p>
             </div>
-            <span
-              className={`osp-status${saveState === "saving" ? " osp-status--saving" : ""}`}
-            >
-              {saveState === "saving"
-                ? "Saving…"
-                : saveState === "saved"
-                  ? fetcher.data?.message
-                  : saveState === "error"
-                    ? fetcher.data?.message
-                    : "Changes save automatically"}
+            <span className={`osp-status${saving ? " osp-status--saving" : ""}`}>
+              {saveLabel}
             </span>
           </div>
 
@@ -204,14 +206,7 @@ export default function SettingsPage() {
                   Reset look
                 </button>
               </div>
-
-              {tab === "style" ? <StyleSettingsEditor {...editorProps} /> : null}
-              {tab === "font" ? <FontSettingsEditor {...editorProps} /> : null}
-              {tab === "color" ? <ColorSettingsEditor {...editorProps} /> : null}
-              {tab === "size" ? <SizeSettingsEditor {...editorProps} /> : null}
-              {tab === "shape" ? <ShapeSettingsEditor {...editorProps} /> : null}
-              {tab === "spacing" ? <SpacingSettingsEditor {...editorProps} /> : null}
-              {tab === "css" ? <CssSettingsEditor {...editorProps} /> : null}
+              <DesignEditor {...editorProps} />
             </s-stack>
           ) : null}
 

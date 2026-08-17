@@ -7,12 +7,31 @@ export class SettingsRepository {
     return prisma.settings.findUnique({ where: { shop } });
   }
 
-  async upsertTheme(shop: string, theme: string) {
+  async upsertAll(
+    shop: string,
+    data: {
+      theme: string;
+      translations: string;
+      general: string;
+      customCss: string | null;
+    },
+  ) {
     assertShop(shop);
     return prisma.settings.upsert({
       where: { shop },
-      create: { shop, theme },
-      update: { theme },
+      create: {
+        shop,
+        theme: data.theme,
+        translations: data.translations,
+        general: data.general,
+        customCss: data.customCss,
+      },
+      update: {
+        theme: data.theme,
+        translations: data.translations,
+        general: data.general,
+        customCss: data.customCss,
+      },
     });
   }
 }

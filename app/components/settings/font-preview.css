@@ -86,7 +86,21 @@
   border-radius: var(--product-options-radius);
 }
 
-.font-preview .product-options__total {
-  padding-top: 10px;
-  border-top: 1px solid var(--product-options-border);
+.font-preview .product-options__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #c9b6ff;
+  color: #121212;
+  line-height: 1.4;
+}
+
+.font-preview .product-options__filename {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+.font-preview .product-options--hide-selected .product-options__selected-value {
+  display: none;
 }

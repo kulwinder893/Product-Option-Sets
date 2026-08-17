@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useFetcher } from "react-router";
-import type { FontElementKey, FontSettings, FontStyleId } from "../../types/app-design";
+import type { FontElementKey, FontSettings, FontStyleId, AppSettingsState } from "../../types/app-design";
 import {
   FONT_ELEMENT_LABELS,
   FONT_FAMILIES,
@@ -9,53 +7,27 @@ import {
   FONT_STYLES,
 } from "../../constants/app-design";
 import { FONT_ELEMENT_KEYS } from "../../types/app-design";
-import { FontLivePreview } from "./FontLivePreview";
+import { DesignPreview } from "./DesignPreview";
 
 type Props = {
-  initialFonts: FontSettings;
+  settings: AppSettingsState;
+  onChange: (next: AppSettingsState) => void;
 };
 
-type ActionData = {
-  ok?: boolean;
-  message?: string;
-  fonts?: FontSettings;
-};
-
-export function FontSettingsEditor({ initialFonts }: Props) {
-  const fetcher = useFetcher<ActionData>();
-  const [fonts, setFonts] = useState(initialFonts);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setFonts(initialFonts);
-  }, [initialFonts]);
-
-  useEffect(() => {
-    if (fetcher.data?.fonts && fetcher.data.message?.includes("reset")) {
-      setFonts(fetcher.data.fonts);
-    }
-  }, [fetcher.data]);
-
-  const persist = (next: FontSettings) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      const form = new FormData();
-      form.set("intent", "save-fonts");
-      form.set("fonts", JSON.stringify(next));
-      fetcher.submit(form, { method: "post" });
-    }, 250);
-  };
+export function FontSettingsEditor({ settings, onChange }: Props) {
+  const fonts = settings.design.fonts;
 
   const updateToken = (
     key: FontElementKey,
     patch: Partial<FontSettings[FontElementKey]>,
   ) => {
-    const next = {
-      ...fonts,
-      [key]: { ...fonts[key], ...patch },
-    };
-    setFonts(next);
-    persist(next);
+    onChange({
+      ...settings,
+      design: {
+        ...settings.design,
+        fonts: { ...fonts, [key]: { ...fonts[key], ...patch } },
+      },
+    });
   };
 
   return (
@@ -99,8 +71,7 @@ export function FontSettingsEditor({ initialFonts }: Props) {
                 value={fonts[key].style}
                 onChange={(event: Event) =>
                   updateToken(key, {
-                    style: (event.currentTarget as HTMLSelectElement)
-                      .value as FontStyleId,
+                    style: (event.currentTarget as HTMLSelectElement).value as FontStyleId,
                   })
                 }
               >
@@ -125,16 +96,9 @@ export function FontSettingsEditor({ initialFonts }: Props) {
               />
             </s-grid>
           ))}
-
-          {fetcher.state !== "idle" ? (
-            <s-text color="subdued">Saving…</s-text>
-          ) : fetcher.data?.ok ? (
-            <s-text color="subdued">{fetcher.data.message}</s-text>
-          ) : null}
         </s-stack>
       </s-box>
-
-      <FontLivePreview fonts={fonts} />
+      <DesignPreview settings={settings} />
     </s-grid>
   );
 }

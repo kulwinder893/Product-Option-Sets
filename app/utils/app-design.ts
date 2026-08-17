@@ -1,22 +1,34 @@
 import {
+  DEFAULT_ADVANCED,
+  DEFAULT_DESIGN,
   DEFAULT_FONT_SETTINGS,
+  DEFAULT_TRANSLATIONS,
   FONT_ELEMENT_LABELS,
   FONT_FAMILIES,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   FONT_STYLES,
+  LIGHT_COLORS,
 } from "../constants/app-design";
 import {
   FONT_ELEMENT_KEYS,
+  type AdvancedSettings,
   type AppDesignSettings,
+  type AppSettingsState,
+  type ColorSettings,
   type FontElementKey,
   type FontSettings,
   type FontStyleId,
   type FontToken,
+  type ShapeSettings,
+  type SizeSettings,
+  type SpacingSettings,
   type StorefrontDesignPayload,
+  type StyleSettings,
+  type TranslationSettings,
 } from "../types/app-design";
 
-const SELECTORS: Record<FontElementKey, string> = {
+const FONT_SELECTORS: Record<FontElementKey, string> = {
   optionLabel: ".product-options__label-text, .product-options__group-title",
   optionValue:
     ".product-options__choice-label, .product-options__button, .product-options__swatch",
@@ -27,13 +39,22 @@ const SELECTORS: Record<FontElementKey, string> = {
   errorText: ".product-options__error",
   inputText:
     ".product-options__input, .product-options__select, .product-options__textarea",
-  quantitySelector:
-    ".product-options__quantity, .product-options__range-value",
+  quantitySelector: ".product-options__quantity, .product-options__range-value",
+  fileUpload: ".product-options__upload, .product-options__filename",
+  badgeText: ".product-options__badge",
 };
 
-function clampSize(value: number): number {
-  if (!Number.isFinite(value)) return 14;
-  return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(value)));
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function clamp(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function isHex(value: unknown): value is string {
+  return typeof value === "string" && /^#([0-9a-fA-F]{3,8})$/.test(value);
 }
 
 function isFontStyle(value: unknown): value is FontStyleId {
@@ -41,19 +62,17 @@ function isFontStyle(value: unknown): value is FontStyleId {
 }
 
 function normalizeToken(raw: unknown, fallback: FontToken): FontToken {
-  if (!raw || typeof raw !== "object") return { ...fallback };
-  const token = raw as Partial<FontToken>;
-  const family = FONT_FAMILIES.some((item) => item.id === token.family)
-    ? token.family!
+  if (!isObject(raw)) return { ...fallback };
+  const family = FONT_FAMILIES.some((item) => item.id === raw.family)
+    ? String(raw.family)
     : fallback.family;
-  const style = isFontStyle(token.style) ? token.style : fallback.style;
-  const size = clampSize(Number(token.size ?? fallback.size));
+  const style = isFontStyle(raw.style) ? raw.style : fallback.style;
+  const size = clamp(Number(raw.size), FONT_SIZE_MIN, FONT_SIZE_MAX, fallback.size);
   return { family, style, size };
 }
 
 export function normalizeFontSettings(raw: unknown): FontSettings {
-  const source =
-    raw && typeof raw === "object" ? (raw as Partial<FontSettings>) : {};
+  const source = isObject(raw) ? raw : {};
   const next = { ...DEFAULT_FONT_SETTINGS };
   for (const key of FONT_ELEMENT_KEYS) {
     next[key] = normalizeToken(source[key], DEFAULT_FONT_SETTINGS[key]);
@@ -61,9 +80,89 @@ export function normalizeFontSettings(raw: unknown): FontSettings {
   return next;
 }
 
+function mergeRecord<T extends Record<string, unknown>>(defaults: T, raw: unknown): T {
+  if (!isObject(raw)) return { ...defaults };
+  const next = { ...defaults };
+  for (const key of Object.keys(defaults) as Array<keyof T>) {
+    const current = defaults[key];
+    const incoming = raw[key as string];
+    if (typeof current === "string") {
+      if (typeof incoming === "string" && incoming.trim()) {
+        next[key] = incoming as T[keyof T];
+      }
+    } else if (typeof current === "number") {
+      if (typeof incoming === "number" && Number.isFinite(incoming)) {
+        next[key] = incoming as T[keyof T];
+      }
+    } else if (typeof current === "boolean") {
+      if (typeof incoming === "boolean") {
+        next[key] = incoming as T[keyof T];
+      }
+    }
+  }
+  return next;
+}
+
+function normalizeColors(raw: unknown): ColorSettings {
+  const merged = mergeRecord(LIGHT_COLORS as unknown as Record<string, unknown>, raw);
+  const next = { ...LIGHT_COLORS };
+  for (const key of Object.keys(LIGHT_COLORS) as Array<keyof ColorSettings>) {
+    const value = merged[key];
+    next[key] = isHex(value) ? value : LIGHT_COLORS[key];
+  }
+  return next;
+}
+
 export function normalizeAppDesign(raw: unknown): AppDesignSettings {
-  const source = raw && typeof raw === "object" ? (raw as { fonts?: unknown }) : {};
-  return { fonts: normalizeFontSettings(source.fonts) };
+  const source = isObject(raw) ? raw : {};
+  const style = mergeRecord(
+    DEFAULT_DESIGN.style as unknown as Record<string, unknown>,
+    source.style,
+  ) as unknown as StyleSettings;
+  if (style.preset !== "classic") style.preset = "modern";
+  if (style.mode !== "dark") style.mode = "light";
+  if (style.choiceLayout !== "vertical") style.choiceLayout = "horizontal";
+  return {
+    style,
+    fonts: normalizeFontSettings(source.fonts),
+    colors: normalizeColors(source.colors),
+    sizes: mergeRecord(
+      DEFAULT_DESIGN.sizes as unknown as Record<string, unknown>,
+      source.sizes,
+    ) as unknown as SizeSettings,
+    shapes: mergeRecord(
+      DEFAULT_DESIGN.shapes as unknown as Record<string, unknown>,
+      source.shapes,
+    ) as unknown as ShapeSettings,
+    spacing: mergeRecord(
+      DEFAULT_DESIGN.spacing as unknown as Record<string, unknown>,
+      source.spacing,
+    ) as unknown as SpacingSettings,
+    customCss: typeof source.customCss === "string" ? source.customCss : "",
+  };
+}
+
+export function normalizeTranslations(raw: unknown): TranslationSettings {
+  return mergeRecord(
+    DEFAULT_TRANSLATIONS as unknown as Record<string, unknown>,
+    raw,
+  ) as unknown as TranslationSettings;
+}
+
+export function normalizeAdvanced(raw: unknown): AdvancedSettings {
+  return mergeRecord(
+    DEFAULT_ADVANCED as unknown as Record<string, unknown>,
+    raw,
+  ) as unknown as AdvancedSettings;
+}
+
+export function normalizeAppSettings(raw: unknown): AppSettingsState {
+  const source = isObject(raw) ? raw : {};
+  return {
+    design: normalizeAppDesign(source.design ?? source),
+    translations: normalizeTranslations(source.translations),
+    advanced: normalizeAdvanced(source.advanced),
+  };
 }
 
 function styleToCss(style: FontStyleId): { weight: string; italic: string } {
@@ -104,11 +203,11 @@ function scopedSelector(selectors: string, scope?: string): string {
     .join(", ");
 }
 
-export function fontSettingsToCss(fonts: FontSettings, scope?: string): string {
+function fontRules(fonts: FontSettings, scope?: string): string {
   return FONT_ELEMENT_KEYS.map((key) => {
     const token = fonts[key];
     const { weight, italic } = styleToCss(token.style);
-    return `${scopedSelector(SELECTORS[key], scope)} {
+    return `${scopedSelector(FONT_SELECTORS[key], scope)} {
   font-family: ${familyStack(token.family)};
   font-weight: ${weight};
   font-style: ${italic};
@@ -117,11 +216,174 @@ export function fontSettingsToCss(fonts: FontSettings, scope?: string): string {
   }).join("\n");
 }
 
-export function toStorefrontDesign(fonts: FontSettings): StorefrontDesignPayload {
+function rootSelector(scope?: string) {
+  return scope || ".product-options";
+}
+
+export function designToCss(design: AppDesignSettings, scope?: string): string {
+  const { colors, sizes, shapes, spacing, style } = design;
+  const root = rootSelector(scope);
+  const swatchRadius =
+    shapes.swatchShape === "circle"
+      ? "50%"
+      : shapes.swatchShape === "rounded"
+        ? `${shapes.swatchRadius}px`
+        : "0px";
+  const choiceDirection = style.choiceLayout === "horizontal" ? "row" : "column";
+
+  const variables = `${root} {
+  --po-color-label: ${colors.optionLabel};
+  --po-color-value: ${colors.optionValue};
+  --po-color-selected: ${colors.selectedValue};
+  --po-color-help: ${colors.helpText};
+  --po-color-tooltip: ${colors.tooltip};
+  --po-color-error: ${colors.errorMessage};
+  --po-total-bg: ${colors.totalBackground};
+  --po-total-text: ${colors.totalText};
+  --po-total-price: ${colors.totalPrice};
+  --po-total-border: ${colors.totalBorder};
+  --po-input-placeholder: ${colors.inputPlaceholder};
+  --po-input-text: ${colors.inputValue};
+  --po-input-border: ${colors.inputBorder};
+  --po-input-border-focus: ${colors.inputBorderFocus};
+  --po-input-bg: ${colors.inputBackground};
+  --po-input-bg-focus: ${colors.inputBackgroundFocus};
+  --po-color-swatch-border: ${colors.colorSwatchBorder};
+  --po-color-swatch-border-selected: ${colors.colorSwatchBorderSelected};
+  --po-image-swatch-border: ${colors.imageSwatchBorder};
+  --po-image-swatch-border-selected: ${colors.imageSwatchBorderSelected};
+  --po-button-bg: ${colors.buttonBackground};
+  --po-button-text: ${colors.buttonText};
+  --po-button-border: ${colors.buttonBorder};
+  --po-button-bg-selected: ${colors.buttonBackgroundSelected};
+  --po-button-text-selected: ${colors.buttonTextSelected};
+  --po-switch-on: ${colors.switchOn};
+  --po-input-height: ${sizes.inputHeight}px;
+  --po-dropdown-height: ${sizes.dropdownHeight}px;
+  --po-quantity-height: ${sizes.quantityHeight}px;
+  --po-swatch-size: ${sizes.swatchSize}px;
+  --po-button-min-height: ${sizes.buttonMinHeight}px;
+  --po-checkbox-size: ${sizes.checkboxSize}px;
+  --po-upload-height: ${sizes.uploadButtonHeight}px;
+  --po-input-radius: ${shapes.inputRadius}px;
+  --po-button-radius: ${shapes.buttonRadius}px;
+  --po-total-radius: ${shapes.totalRadius}px;
+  --po-swatch-radius: ${swatchRadius};
+  --po-field-gap: ${spacing.fieldGap}px;
+  --po-choice-gap: ${spacing.choiceGap}px;
+  --po-swatch-gap: ${spacing.swatchGap}px;
+  --po-label-gap: ${spacing.labelGap}px;
+  --po-widget-padding: ${spacing.widgetPadding}px;
+  --po-choice-direction: ${choiceDirection};
+  --product-options-accent: ${colors.inputBorderFocus};
+  --product-options-border: ${colors.inputBorder};
+  --product-options-radius: ${shapes.inputRadius}px;
+  gap: var(--po-field-gap);
+  padding: var(--po-widget-padding);
+}
+
+${scopedSelector(".product-options__label", scope)} { gap: var(--po-label-gap); }
+${scopedSelector(".product-options__label-text", scope)} { color: var(--po-color-label); }
+${scopedSelector(".product-options__choice-label", scope)} { color: var(--po-color-value); }
+${scopedSelector(".product-options__selected-value", scope)} { color: var(--po-color-selected); }
+${scopedSelector(".product-options__help, .product-options__description", scope)} { color: var(--po-color-help); }
+${scopedSelector(".product-options__tooltip", scope)} { color: var(--po-color-tooltip); }
+${scopedSelector(".product-options__error", scope)} { color: var(--po-color-error); }
+${scopedSelector(".product-options__total", scope)} {
+  background: var(--po-total-bg);
+  color: var(--po-total-text);
+  border: 1px solid var(--po-total-border);
+  border-radius: var(--po-total-radius);
+  padding: 10px 12px;
+}
+${scopedSelector(".product-options__addon, .product-options__total-price", scope)} { color: var(--po-total-price); }
+${scopedSelector(".product-options__input, .product-options__select, .product-options__textarea", scope)} {
+  min-height: var(--po-input-height);
+  color: var(--po-input-text);
+  border-color: var(--po-input-border);
+  background: var(--po-input-bg);
+  border-radius: var(--po-input-radius);
+}
+${scopedSelector(".product-options__select", scope)} { min-height: var(--po-dropdown-height); }
+${scopedSelector(".product-options__quantity", scope)} { min-height: var(--po-quantity-height); }
+${scopedSelector(".product-options__input::placeholder", scope)} { color: var(--po-input-placeholder); }
+${scopedSelector(".product-options__input:focus, .product-options__select:focus", scope)} {
+  border-color: var(--po-input-border-focus);
+  background: var(--po-input-bg-focus);
+  outline-color: var(--po-input-border-focus);
+}
+${scopedSelector(".product-options__swatches--color .product-options__swatch-visual", scope)} {
+  border-color: var(--po-color-swatch-border);
+}
+${scopedSelector(".product-options__swatches--image .product-options__swatch-visual, .product-options__swatches--square .product-options__swatch-visual", scope)} {
+  border-color: var(--po-image-swatch-border);
+  border-radius: var(--po-swatch-radius);
+}
+${scopedSelector(".product-options__swatch-visual", scope)} {
+  width: var(--po-swatch-size);
+  height: var(--po-swatch-size);
+  border-radius: var(--po-swatch-radius);
+}
+${scopedSelector(".product-options__swatches--color .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual, .product-options__swatches--circle .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual", scope)} {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--po-color-swatch-border-selected);
+}
+${scopedSelector(".product-options__swatches--image .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual, .product-options__swatches--square .product-options__swatch:has(.product-options__swatch-input:checked) .product-options__swatch-visual", scope)} {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--po-image-swatch-border-selected);
+}
+${scopedSelector(".product-options__button", scope)} {
+  min-height: var(--po-button-min-height);
+  background: var(--po-button-bg);
+  color: var(--po-button-text);
+  border-color: var(--po-button-border);
+  border-radius: var(--po-button-radius);
+}
+${scopedSelector(".product-options__button.is-selected, .product-options__button:has(.product-options__button-input:checked)", scope)} {
+  background: var(--po-button-bg-selected);
+  color: var(--po-button-text-selected);
+  border-color: var(--po-button-bg-selected);
+}
+${scopedSelector(".product-options__choice-input", scope)} {
+  width: var(--po-checkbox-size);
+  height: var(--po-checkbox-size);
+}
+${scopedSelector(".product-options__choices", scope)} {
+  display: flex;
+  flex-direction: var(--po-choice-direction);
+  flex-wrap: wrap;
+  gap: var(--po-choice-gap);
+}
+${scopedSelector(".product-options__swatches", scope)} { gap: var(--po-swatch-gap); }
+${scopedSelector(".product-options__switch-input:checked + .product-options__switch-track", scope)} {
+  background: var(--po-switch-on);
+}
+${scopedSelector(".product-options__upload", scope)} {
+  min-height: var(--po-upload-height);
+}
+${scopedSelector(".product-options--hide-selected .product-options__selected-value", scope)} {
+  display: none;
+}
+`;
+
+  const fonts = fontRules(design.fonts, scope);
+  const custom = design.customCss?.trim() ? `\n${design.customCss}` : "";
+  return `${variables}\n${fonts}${custom}`;
+}
+
+/** @deprecated use designToCss */
+export function fontSettingsToCss(fonts: FontSettings, scope?: string): string {
+  return fontRules(fonts, scope);
+}
+
+export function toStorefrontDesign(
+  settings: AppSettingsState,
+): StorefrontDesignPayload {
   return {
-    fonts,
-    css: fontSettingsToCss(fonts),
-    googleFontsUrl: googleFontsUrl(fonts),
+    css: designToCss(settings.design),
+    googleFontsUrl: googleFontsUrl(settings.design.fonts),
+    fonts: settings.design.fonts,
+    style: settings.design.style,
+    translations: settings.translations,
+    advanced: settings.advanced,
   };
 }
 

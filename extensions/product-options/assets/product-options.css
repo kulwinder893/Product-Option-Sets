@@ -298,7 +298,28 @@
   font-weight: 600;
 }
 
-.product-options-slot {
-  margin-top: var(--product-options-slot-top, 16px);
-  margin-bottom: var(--product-options-slot-bottom, 16px);
+.product-options__total-price {
+  font-weight: 600;
+}
+
+.product-options__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.product-options__upload {
+  display: inline-flex;
+  align-items: center;
+}
+
+.product-options__filename {
+  display: block;
+  margin-top: 6px;
+}
+
+.product-options--hide-selected .product-options__selected-value {
+  display: none;
 }

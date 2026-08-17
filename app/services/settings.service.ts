@@ -1,30 +1,54 @@
-import type { AppDesignSettings } from "../types/app-design";
+import type { AppDesignSettings, AppSettingsState } from "../types/app-design";
 import { settingsRepository } from "../repositories/settings.repository";
 import { assertShop, safeJsonParse } from "../utils/errors";
-import { normalizeAppDesign, toStorefrontDesign } from "../utils/app-design";
+import { normalizeAppSettings, toStorefrontDesign } from "../utils/app-design";
+import { DEFAULT_DESIGN, colorsForMode } from "../constants/app-design";
+
+function pack(settings: AppSettingsState) {
+  return {
+    theme: JSON.stringify(settings.design),
+    translations: JSON.stringify(settings.translations),
+    general: JSON.stringify(settings.advanced),
+    customCss: settings.design.customCss || null,
+  };
+}
 
 export class SettingsService {
-  async getDesign(shop: string): Promise<AppDesignSettings> {
+  async getAll(shop: string): Promise<AppSettingsState> {
     assertShop(shop);
     const row = await settingsRepository.findByShop(shop);
-    return normalizeAppDesign(safeJsonParse(row?.theme, {}));
+    return normalizeAppSettings({
+      design: {
+        ...safeJsonParse<AppDesignSettings>(row?.theme, DEFAULT_DESIGN),
+        customCss: row?.customCss ?? "",
+      },
+      translations: safeJsonParse(row?.translations, {}),
+      advanced: safeJsonParse(row?.general, {}),
+    });
   }
 
-  async saveFonts(shop: string, fonts: AppDesignSettings["fonts"]): Promise<AppDesignSettings> {
+  async saveAll(shop: string, settings: AppSettingsState): Promise<AppSettingsState> {
     assertShop(shop);
-    const current = await this.getDesign(shop);
-    const next = normalizeAppDesign({ ...current, fonts });
-    await settingsRepository.upsertTheme(shop, JSON.stringify(next));
+    const next = normalizeAppSettings(settings);
+    await settingsRepository.upsertAll(shop, pack(next));
     return next;
   }
 
-  async resetFonts(shop: string): Promise<AppDesignSettings> {
-    return this.saveFonts(shop, normalizeAppDesign({}).fonts);
+  async resetDesign(shop: string): Promise<AppSettingsState> {
+    const current = await this.getAll(shop);
+    const mode = current.design.style.mode;
+    return this.saveAll(shop, {
+      ...current,
+      design: {
+        ...DEFAULT_DESIGN,
+        style: { ...DEFAULT_DESIGN.style, mode },
+        colors: colorsForMode(mode),
+      },
+    });
   }
 
   async getStorefrontDesign(shop: string) {
-    const design = await this.getDesign(shop);
-    return toStorefrontDesign(design.fonts);
+    return toStorefrontDesign(await this.getAll(shop));
   }
 }
 

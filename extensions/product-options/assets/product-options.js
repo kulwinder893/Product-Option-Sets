@@ -134,7 +134,7 @@
       });
   }
 
-  function applyDesign(design) {
+  function applyDesign(design, context, form) {
     if (!design) return;
 
     if (design.googleFontsUrl && !document.querySelector('link[data-product-options-fonts]')) {
@@ -145,11 +145,36 @@
       document.head.appendChild(link);
     }
 
-    if (design.css && !document.querySelector("style[data-product-options-design]")) {
+    var existing = document.querySelector("style[data-product-options-design]");
+    if (existing) existing.remove();
+    if (design.css) {
       var style = document.createElement("style");
       style.setAttribute("data-product-options-design", "");
       style.textContent = design.css;
       document.head.appendChild(style);
+    }
+
+    if (design.translations) context.translations = design.translations;
+    if (design.style) context.designStyle = design.style;
+
+    var advanced = design.advanced;
+    if (advanced) {
+      context.settings = context.settings || {};
+      if (typeof advanced.showTotal === "boolean") {
+        context.settings.showTotal = advanced.showTotal;
+      }
+      if (typeof advanced.hideOutOfStock === "boolean") {
+        context.settings.hideOutOfStock = advanced.hideOutOfStock;
+      }
+      if (advanced.addToCartText) {
+        var addButton =
+          form.querySelector('[name="add"]') ||
+          form.querySelector('button[type="submit"]');
+        if (addButton) {
+          var label = addButton.querySelector("span") || addButton;
+          label.textContent = advanced.addToCartText;
+        }
+      }
     }
   }
 
@@ -207,7 +232,9 @@
     wrapper.appendChild(el("span", ROOT_CLASS + "__label-text", field.label));
 
     if (field.required) {
-      var marker = this.settings.requiredMarker || "*";
+      var marker = this.settings.requiredMarker ||
+        (this.context.translations && this.context.translations.required) ||
+        "*";
       wrapper.appendChild(el("span", ROOT_CLASS + "__required", marker));
     }
 
@@ -347,6 +374,10 @@
     };
   };
 
+  Renderer.prototype.choiceVisible = function (choice) {
+    return !choice.isDisabled || !this.settings.hideOutOfStock;
+  };
+
   Renderer.prototype.renderSelect = function (field, wrapper) {
     var self = this;
     var select = el("select", ROOT_CLASS + "__input " + ROOT_CLASS + "__select");
@@ -354,12 +385,15 @@
     var placeholder = el(
       "option",
       null,
-      field.placeholder || "Select an option"
+      field.placeholder ||
+        (this.context.translations && this.context.translations.pleaseSelect) ||
+        "Select an option"
     );
     placeholder.value = "";
     select.appendChild(placeholder);
 
     field.choices.forEach(function (choice) {
+      if (!self.choiceVisible(choice)) return;
       var option = el("option", null, self.choiceLabel(choice));
       option.value = choice.id;
       if (choice.isDisabled) option.disabled = true;
@@ -392,6 +426,7 @@
 
     var inputs = [];
     field.choices.forEach(function (choice) {
+      if (!self.choiceVisible(choice)) return;
       var item = el("label", ROOT_CLASS + "__choice");
       var input = el("input", ROOT_CLASS + "__choice-input");
       input.type = inputType;
@@ -436,11 +471,19 @@
 
     var list = el(
       "div",
-      ROOT_CLASS + "__swatches " + ROOT_CLASS + "__swatches--" + shape
+      ROOT_CLASS +
+        "__swatches " +
+        ROOT_CLASS +
+        "__swatches--" +
+        shape +
+        " " +
+        ROOT_CLASS +
+        (isColor ? "__swatches--color" : "__swatches--image")
     );
     var inputs = [];
 
     field.choices.forEach(function (choice) {
+      if (!self.choiceVisible(choice)) return;
       var item = el("label", ROOT_CLASS + "__swatch");
       item.title = self.choiceLabel(choice);
 
@@ -491,6 +534,7 @@
     var inputs = [];
 
     field.choices.forEach(function (choice) {
+      if (!self.choiceVisible(choice)) return;
       var item = el("label", ROOT_CLASS + "__button");
       var input = el("input", ROOT_CLASS + "__button-input");
       input.type = "radio";
@@ -650,6 +694,9 @@
 
   Renderer.prototype.render = function (optionSets) {
     var root = el("div", ROOT_CLASS);
+    if (this.context.designStyle && this.context.designStyle.showSelectedValue === false) {
+      root.classList.add(ROOT_CLASS + "--hide-selected");
+    }
     if (this.settings.accentColor) {
       root.style.setProperty("--product-options-accent", this.settings.accentColor);
     }
@@ -757,9 +804,14 @@
       return;
     }
     node.hidden = false;
-    node.textContent =
-      "Options total: +" +
-      formatMoney(totalCents, this.context.moneyFormat);
+    var label =
+      (this.context.translations && this.context.translations.optionsTotal) ||
+      "Options total";
+    var amount = formatMoney(totalCents, this.context.moneyFormat);
+    node.innerHTML = "";
+    node.appendChild(document.createTextNode(label + ": "));
+    var price = el("span", ROOT_CLASS + "__total-price", "+" + amount);
+    node.appendChild(price);
   };
 
   Controller.prototype.validate = function () {
@@ -772,7 +824,10 @@
       var message = "";
 
       if (field.required && !entry.value) {
-        message = field.customErrorMessage || field.label + " is required.";
+        message =
+          field.customErrorMessage ||
+          (this.context.translations && this.context.translations.errorRequired) ||
+          field.label + " is required.";
       } else if (
         entry.value &&
         field.minLength != null &&
@@ -1309,7 +1364,7 @@
         var optionSets = payload.optionSets || [];
         if (!optionSets.length) return;
 
-        applyDesign(payload.design);
+        applyDesign(payload.design, context, form);
 
         var renderer = new Renderer(context);
         var root = renderer.render(optionSets);

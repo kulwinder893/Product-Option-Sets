@@ -1,9 +1,10 @@
+import { useEffect, useRef, useState } from "react";
 import type {
   HeadersFunction,
   ActionFunctionArgs,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useSearchParams, useSubmit } from "react-router";
+import { useFetcher, useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { settingsService } from "../services/settings.service";
@@ -13,15 +14,24 @@ import {
   type DesignTabId,
   type SettingsSectionId,
 } from "../constants/app-design";
-import { FontSettingsEditor } from "../components/settings/FontSettingsEditor";
 import { AppError } from "../utils/errors";
-import type { FontSettings } from "../types/app-design";
-import { normalizeFontSettings } from "../utils/app-design";
+import { normalizeAppSettings } from "../utils/app-design";
+import type { AppSettingsState } from "../types/app-design";
+import { StyleSettingsEditor } from "../components/settings/StyleSettingsEditor";
+import { FontSettingsEditor } from "../components/settings/FontSettingsEditor";
+import { ColorSettingsEditor } from "../components/settings/ColorSettingsEditor";
+import { SizeSettingsEditor } from "../components/settings/SizeSettingsEditor";
+import { ShapeSettingsEditor } from "../components/settings/ShapeSettingsEditor";
+import { SpacingSettingsEditor } from "../components/settings/SpacingSettingsEditor";
+import { CssSettingsEditor } from "../components/settings/CssSettingsEditor";
+import { TranslationSettingsEditor } from "../components/settings/TranslationSettingsEditor";
+import { AdvancedSettingsEditor } from "../components/settings/AdvancedSettingsEditor";
+import { ApiSettingsEditor } from "../components/settings/ApiSettingsEditor";
 
 type ActionData = {
   ok: boolean;
   message: string;
-  fonts?: FontSettings;
+  settings?: AppSettingsState;
 };
 
 function isSection(value: string | null): value is SettingsSectionId {
@@ -34,8 +44,8 @@ function isDesignTab(value: string | null): value is DesignTabId {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const design = await settingsService.getDesign(session.shop);
-  return { fonts: design.fonts };
+  const settings = await settingsService.getAll(session.shop);
+  return { settings };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -44,25 +54,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = String(formData.get("intent") || "");
 
   try {
-    if (intent === "reset-fonts") {
-      const design = await settingsService.resetFonts(session.shop);
-      return {
-        ok: true,
-        message: "Font settings reset to defaults",
-        fonts: design.fonts,
-      } satisfies ActionData;
+    if (intent === "reset-design") {
+      const settings = await settingsService.resetDesign(session.shop);
+      return { ok: true, message: "App Design reset to defaults", settings } satisfies ActionData;
     }
 
-    if (intent === "save-fonts") {
-      const fonts = normalizeFontSettings(
-        JSON.parse(String(formData.get("fonts") || "{}")),
+    if (intent === "save-settings") {
+      const parsed = JSON.parse(String(formData.get("payload") || "{}"));
+      const settings = await settingsService.saveAll(
+        session.shop,
+        normalizeAppSettings(parsed),
       );
-      const design = await settingsService.saveFonts(session.shop, fonts);
-      return {
-        ok: true,
-        message: "Font settings saved",
-        fonts: design.fonts,
-      } satisfies ActionData;
+      return { ok: true, message: "Settings saved", settings } satisfies ActionData;
     }
 
     throw new AppError("Unknown settings action", "VALIDATION_ERROR");
@@ -79,21 +82,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function SettingsPage() {
-  const { fonts } = useLoaderData<typeof loader>();
-  const submit = useSubmit();
+  const { settings: initial } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<ActionData>();
+  const [settings, setSettings] = useState(initial);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const section = isSection(searchParams.get("section"))
     ? searchParams.get("section")!
     : "design";
   const tab = isDesignTab(searchParams.get("tab"))
     ? searchParams.get("tab")!
-    : "font";
+    : "style";
+
+  useEffect(() => {
+    setSettings(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    if (fetcher.data?.settings && fetcher.data.message?.includes("reset")) {
+      setSettings(fetcher.data.settings);
+    }
+  }, [fetcher.data]);
+
+  const persist = (next: AppSettingsState) => {
+    setSettings(next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const form = new FormData();
+      form.set("intent", "save-settings");
+      form.set("payload", JSON.stringify(next));
+      fetcher.submit(form, { method: "post" });
+    }, 280);
+  };
 
   const setSection = (next: SettingsSectionId) => {
     const params = new URLSearchParams(searchParams);
     params.set("section", next);
     if (next !== "design") params.delete("tab");
-    else if (!params.get("tab")) params.set("tab", "font");
+    else if (!params.get("tab")) params.set("tab", "style");
     setSearchParams(params, { replace: true });
   };
 
@@ -104,9 +130,7 @@ export default function SettingsPage() {
     setSearchParams(params, { replace: true });
   };
 
-  const resetFonts = () => {
-    submit({ intent: "reset-fonts" }, { method: "post" });
-  };
+  const editorProps = { settings, onChange: persist };
 
   return (
     <s-page heading="Settings">
@@ -142,41 +166,40 @@ export default function SettingsPage() {
                   type="button"
                   variant="tertiary"
                   tone="critical"
-                  onClick={resetFonts}
+                  onClick={() =>
+                    fetcher.submit({ intent: "reset-design" }, { method: "post" })
+                  }
                 >
                   Reset
                 </s-button>
               </div>
             </s-stack>
 
-            {tab === "font" ? (
-              <FontSettingsEditor initialFonts={fonts} />
-            ) : (
-              <ComingSoon
-                title={`${DESIGN_TABS.find((item) => item.id === tab)?.label ?? "This"} settings`}
-                body="This App Design section will use the same layout as Font. Font settings are available now and already apply on the storefront."
-              />
-            )}
+            {tab === "style" ? <StyleSettingsEditor {...editorProps} /> : null}
+            {tab === "font" ? <FontSettingsEditor {...editorProps} /> : null}
+            {tab === "color" ? <ColorSettingsEditor {...editorProps} /> : null}
+            {tab === "size" ? <SizeSettingsEditor {...editorProps} /> : null}
+            {tab === "shape" ? <ShapeSettingsEditor {...editorProps} /> : null}
+            {tab === "spacing" ? <SpacingSettingsEditor {...editorProps} /> : null}
+            {tab === "css" ? <CssSettingsEditor {...editorProps} /> : null}
           </s-stack>
-        ) : (
-          <ComingSoon
-            title={SETTINGS_SECTIONS.find((item) => item.id === section)?.label ?? "Settings"}
-            body="This settings area is next. App Design → Font is ready to use."
-          />
-        )}
+        ) : null}
+
+        {section === "translation" ? (
+          <TranslationSettingsEditor {...editorProps} />
+        ) : null}
+        {section === "advanced" ? (
+          <AdvancedSettingsEditor {...editorProps} />
+        ) : null}
+        {section === "api" ? <ApiSettingsEditor /> : null}
+
+        {fetcher.state !== "idle" ? (
+          <s-text color="subdued">Saving…</s-text>
+        ) : fetcher.data?.ok ? (
+          <s-text color="subdued">{fetcher.data.message}</s-text>
+        ) : null}
       </s-stack>
     </s-page>
-  );
-}
-
-function ComingSoon({ title, body }: { title: string; body: string }) {
-  return (
-    <s-box padding="base" borderWidth="base" borderRadius="base">
-      <s-stack direction="block" gap="small-200">
-        <s-heading>{title}</s-heading>
-        <s-paragraph>{body}</s-paragraph>
-      </s-stack>
-    </s-box>
   );
 }
 

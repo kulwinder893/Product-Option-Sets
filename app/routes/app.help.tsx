@@ -38,6 +38,46 @@ export default function HelpPage() {
           </s-list-item>
         </s-unordered-list>
       </s-section>
+      <s-section heading="Order confirmation emails">
+        <s-paragraph>
+          Product Options saves shopper choices as <strong>line item properties</strong> (for
+          example <code>Color swatch: Red</code>). Shopify&apos;s default Order confirmation
+          email only prints properties for gift cards — you need to add a small Liquid block
+          so custom options appear under each product.
+        </s-paragraph>
+        <s-ordered-list>
+          <s-list-item>
+            In Shopify admin go to <strong>Settings → Notifications</strong>.
+          </s-list-item>
+          <s-list-item>
+            Open <strong>Order confirmation</strong> → <strong>Edit code</strong>.
+          </s-list-item>
+          <s-list-item>
+            Search for <code>order-list__item-variant</code> (there are several copies in
+            the file — add the snippet in each line-item block, right after the variant title
+            lines and before <code>selling_plan_allocation</code>).
+          </s-list-item>
+          <s-list-item>
+            Paste the snippet below, save, and send yourself a test order.
+          </s-list-item>
+        </s-ordered-list>
+        <s-box padding="base" background="subdued" borderRadius="base">
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "12px" }}>{`{% for property in line.properties %}
+  {% assign property_first_char = property.first | slice: 0 %}
+  {% if property.last != blank and property_first_char != '_' %}
+    <span class="order-list__item-variant">
+      {% assign label = property.first | strip %}
+      {% if label != blank %}{{ label }}: {% endif %}{{ property.last }}
+    </span><br/>
+  {% endif %}
+{% endfor %}`}</pre>
+        </s-box>
+        <s-paragraph>
+          Properties whose names start with <code>_</code> (including the app&apos;s internal{" "}
+          <code>_po_fields</code> key) are skipped so only shopper-facing options show.
+        </s-paragraph>
+      </s-section>
+
       <s-section heading="Need support?">
         <s-paragraph>
           Documentation and support channels will be connected in a later release.

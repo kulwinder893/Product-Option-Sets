@@ -12,7 +12,7 @@ import { settingsService } from "../services/settings.service";
 import {
   DESIGN_TABS,
   SETTINGS_SECTIONS,
-  type DesignTabId,
+  type DesignTabId,  
   type SettingsSectionId,
 } from "../constants/app-design";
 import { AppError } from "../utils/errors";

@@ -40,41 +40,59 @@ export default function HelpPage() {
       </s-section>
       <s-section heading="Order confirmation emails">
         <s-paragraph>
-          Product Options saves shopper choices as <strong>line item properties</strong> (for
-          example <code>Color swatch: Red</code>). Shopify&apos;s default Order confirmation
-          email only prints properties for gift cards — you need to add a small Liquid block
-          so custom options appear under each product.
+          Product Options saves choices as <strong>line item properties</strong> on the order
+          (for example <code>Color swatch: Red</code>). They are <strong>not</strong> part of
+          the Shopify variant title — the email must loop <code>line.properties</code> under
+          each product.
         </s-paragraph>
         <s-ordered-list>
           <s-list-item>
-            In Shopify admin go to <strong>Settings → Notifications</strong>.
+            Confirm data exists: Shopify admin → <strong>Orders</strong> → open a test order
+            → under the line item you should see property rows (not only variant size/color).
           </s-list-item>
           <s-list-item>
-            Open <strong>Order confirmation</strong> → <strong>Edit code</strong>.
+            Go to <strong>Settings → Notifications → Order confirmation → Edit code</strong>.
           </s-list-item>
           <s-list-item>
-            Search for <code>order-list__item-variant</code> (there are several copies in
-            the file — add the snippet in each line-item block, right after the variant title
-            lines and before <code>selling_plan_allocation</code>).
+            Delete any code you added <strong>after</strong> <code>&lt;/html&gt;</code> — it
+            never renders in the email.
           </s-list-item>
           <s-list-item>
-            Paste the snippet below, save, and send yourself a test order.
+            Search for <code>line.gift_card and line.properties</code>. Shopify wraps property
+            output in a gift-card-only <code>{`{% if %}`}</code>. Replace that whole block
+            (3 times for <code>line</code>, 1 time for <code>component</code>) with the snippet
+            below so properties show for every product.
           </s-list-item>
+          <s-list-item>Save, then place a new test order and preview the notification.</s-list-item>
         </s-ordered-list>
         <s-box padding="base" background="subdued" borderRadius="base">
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "12px" }}>{`{% for property in line.properties %}
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "12px" }}>{`{% comment %} Product Options — show line item properties {% endcomment %}
+{% for property in line.properties %}
   {% assign property_first_char = property.first | slice: 0 %}
   {% if property.last != blank and property_first_char != '_' %}
-    <span class="order-list__item-variant">
-      {% assign label = property.first | strip %}
-      {% if label != blank %}{{ label }}: {% endif %}{{ property.last }}
-    </span><br/>
+    <div class="order-list__item-property">
+      <dt>{% assign label = property.first | strip %}{% if label != blank %}{{ label }}{% else %}Option{% endif %}:</dt>
+      <dd>
+        {% if property.last contains '/uploads/' %}
+          <a href="{{ property.last }}" class="link" target="_blank">{{ property.last | split: '/' | last }}</a>
+        {% else %}
+          {{ property.last }}
+        {% endif %}
+      </dd>
+    </div>
   {% endif %}
 {% endfor %}`}</pre>
         </s-box>
         <s-paragraph>
-          Properties whose names start with <code>_</code> (including the app&apos;s internal{" "}
-          <code>_po_fields</code> key) are skipped so only shopper-facing options show.
+          For blocks that use <code>component</code> instead of <code>line</code>, use the same
+          snippet but replace <code>line.properties</code> with{" "}
+          <code>component.properties</code>. Skip keys starting with <code>_</code> (includes
+          internal <code>_po_fields</code>).
+        </s-paragraph>
+        <s-paragraph>
+          If the order page shows properties but email still does not, the snippet is in the
+          wrong line-item section — search all <code>selling_plan_allocation</code> blocks and
+          paste the loop just above each one.
         </s-paragraph>
       </s-section>
 

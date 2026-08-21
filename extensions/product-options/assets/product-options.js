@@ -4,6 +4,9 @@
 (function () {
   "use strict";
 
+  if (window.__productOptionsBooted) return;
+  window.__productOptionsBooted = true;
+
   var CONTEXT_SELECTOR = "script[data-product-options-context]";
   var SLOT_SELECTOR = "[data-product-options-slot]";
   var ROOT_CLASS = "product-options";
@@ -762,9 +765,9 @@
   };
 
   Renderer.prototype.renderProductPicker = function (field, wrapper) {
+    var self = this;
     var settings = field.settings || {};
     var products = Array.isArray(settings.products) ? settings.products.slice() : [];
-    // Fallback when API mapped products into choices for older scripts.
     if (!products.length && Array.isArray(field.choices)) {
       products = field.choices.map(function (choice) {
         return {
@@ -773,6 +776,7 @@
           variantId: choice.value,
           title: choice.label,
           imageUrl: choice.imageUrl,
+          price: choice.priceAddon,
         };
       });
     }
@@ -781,9 +785,9 @@
     var minQty = field.minQuantity != null ? Number(field.minQuantity) : 1;
     var maxQty = field.maxQuantity != null ? Number(field.maxQuantity) : null;
     if (!isFinite(minQty) || minQty < 1) minQty = 1;
-    var showQty = minQty !== 1 || (maxQty != null && maxQty !== 1);
+    var showQty = !(minQty === 1 && (maxQty == null || maxQty === 1));
 
-    var list = el("div", ROOT_CLASS + "__addons");
+    var list = el("div", ROOT_CLASS + "__addon-grid");
     var rows = [];
 
     if (!products.length) {
@@ -797,60 +801,78 @@
     }
 
     products.forEach(function (product) {
-      var row = el("label", ROOT_CLASS + "__addon");
-      var check = el("input", ROOT_CLASS + "__addon-check");
+      var card = el("label", ROOT_CLASS + "__product-card");
+      var check = el("input", ROOT_CLASS + "__product-card-check");
       check.type = allowMultiple ? "checkbox" : "radio";
       check.name = ROOT_CLASS + "-addon-" + field.id;
       check.value = product.variantId || product.productId || product.productGid;
 
-      var media = el("span", ROOT_CLASS + "__addon-media");
+      var media = el("span", ROOT_CLASS + "__product-card-media");
       if (product.imageUrl) {
-        media.style.backgroundImage = 'url("' + product.imageUrl + '")';
+        media.style.backgroundImage =
+          'url("' + String(product.imageUrl).replace(/"/g, '\\"') + '")';
       } else {
         media.classList.add("is-empty");
       }
 
-      var body = el("span", ROOT_CLASS + "__addon-body");
+      var body = el("span", ROOT_CLASS + "__product-card-body");
       body.appendChild(
-        el("span", ROOT_CLASS + "__addon-title", product.title || "Product")
+        el("span", ROOT_CLASS + "__product-card-title", product.title || "Product")
       );
-      body.appendChild(el("span", ROOT_CLASS + "__addon-tag", "Add-on"));
+
+      var priceAmount = Number(product.price);
+      if (isFinite(priceAmount) && priceAmount > 0) {
+        body.appendChild(
+          el(
+            "span",
+            ROOT_CLASS + "__product-card-price",
+            formatMoney(Math.round(priceAmount * 100), self.context.moneyFormat)
+          )
+        );
+      } else {
+        body.appendChild(
+          el("span", ROOT_CLASS + "__product-card-price is-muted", "Add-on")
+        );
+      }
 
       var qty = null;
       if (showQty) {
-        qty = el("input", ROOT_CLASS + "__addon-qty " + ROOT_CLASS + "__input");
+        qty = el("input", ROOT_CLASS + "__product-card-qty " + ROOT_CLASS + "__input");
         qty.type = "number";
         qty.min = String(minQty);
         if (maxQty != null && isFinite(maxQty)) qty.max = String(maxQty);
         qty.value = String(minQty);
         qty.disabled = true;
+        qty.setAttribute("aria-label", "Quantity for " + (product.title || "add-on"));
         qty.addEventListener("click", function (event) {
           event.preventDefault();
           event.stopPropagation();
         });
       }
 
-      check.addEventListener("change", function () {
+      function syncSelected() {
         if (!allowMultiple && check.checked) {
           rows.forEach(function (other) {
             if (other.check !== check) {
               other.check.checked = false;
               if (other.qty) other.qty.disabled = true;
-              other.row.classList.remove("is-selected");
+              other.card.classList.remove("is-selected");
             }
           });
         }
         if (qty) qty.disabled = !check.checked;
-        if (check.checked) row.classList.add("is-selected");
-        else row.classList.remove("is-selected");
-      });
+        if (check.checked) card.classList.add("is-selected");
+        else card.classList.remove("is-selected");
+      }
 
-      row.appendChild(check);
-      row.appendChild(media);
-      row.appendChild(body);
-      if (qty) row.appendChild(qty);
-      list.appendChild(row);
-      rows.push({ product: product, check: check, qty: qty, row: row });
+      check.addEventListener("change", syncSelected);
+
+      card.appendChild(check);
+      card.appendChild(media);
+      card.appendChild(body);
+      if (qty) card.appendChild(qty);
+      list.appendChild(card);
+      rows.push({ product: product, check: check, qty: qty, card: card });
     });
 
     wrapper.appendChild(list);
@@ -871,6 +893,10 @@
           qtyVal = Number(row.qty.value);
           if (!isFinite(qtyVal) || qtyVal < minQty) qtyVal = minQty;
           if (maxQty != null && isFinite(maxQty) && qtyVal > maxQty) qtyVal = maxQty;
+        }
+        var unit = Number(row.product.price);
+        if (isFinite(unit) && unit > 0) {
+          cents += Math.round(unit * 100) * qtyVal;
         }
         labels.push(row.product.title + (qtyVal > 1 ? " ×" + qtyVal : ""));
         var variantId = row.product.variantId || row.product.productId;

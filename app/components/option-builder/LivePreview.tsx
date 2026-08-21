@@ -202,27 +202,34 @@ function FieldPreview({ field, all }: { field: FieldDraft; all: FieldDraft[] }) 
           {products.length === 0 ? (
             <s-text color="subdued">No add-on products selected.</s-text>
           ) : (
-            <s-stack direction="block" gap="small-200">
+            <s-grid gridTemplateColumns="1fr 1fr 1fr" gap="small-200">
               {products.map((product) => (
-                <s-stack
+                <s-box
                   key={product.productGid}
-                  direction="inline"
-                  gap="small-200"
-                  alignItems="center"
+                  padding="small-200"
+                  borderWidth="base"
+                  borderRadius="base"
                 >
-                  {product.imageUrl ? (
-                    <s-thumbnail
-                      src={product.imageUrl}
-                      alt={product.title}
-                      size="small"
-                    />
-                  ) : (
-                    <s-icon type="product" />
-                  )}
-                  <s-checkbox label={product.title} />
-                </s-stack>
+                  <s-stack direction="block" gap="small-200">
+                    {product.imageUrl ? (
+                      <s-thumbnail
+                        src={product.imageUrl}
+                        alt={product.title}
+                        size="large"
+                      />
+                    ) : (
+                      <s-icon type="product" />
+                    )}
+                    <s-text type="strong">{product.title}</s-text>
+                    <s-text color="subdued">
+                      {product.price != null && isFinite(product.price)
+                        ? `$${Number(product.price).toFixed(2)}`
+                        : "Add-on"}
+                    </s-text>
+                  </s-stack>
+                </s-box>
               ))}
-            </s-stack>
+            </s-grid>
           )}
         </s-stack>
       );

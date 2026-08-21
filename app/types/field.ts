@@ -53,6 +53,8 @@ export type AddonProduct = {
   title: string;
   handle: string | null;
   imageUrl?: string | null;
+  /** Unit price in shop currency (e.g. 19.99). */
+  price?: number | null;
 };
 
 export type ChoiceDraft = {

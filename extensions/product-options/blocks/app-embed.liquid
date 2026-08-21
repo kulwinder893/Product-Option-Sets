@@ -10,6 +10,11 @@
 {%- endcomment -%}
 <link
   rel="stylesheet"
+  href="/apps/product-options?assets=css"
+  data-product-options-base-css
+>
+<link
+  rel="stylesheet"
   href="/apps/product-options?assets=design&shop={{ shop.permanent_domain | url_encode }}"
   data-product-options-design-link
 >
@@ -39,7 +44,11 @@
     }
   }
 </script>
-<script src="{{ 'product-options.js' | asset_url }}" defer="defer"></script>
+{%- comment -%}
+  Load the renderer from the app proxy so Product picker cards (image + price)
+  update when the app is redeployed — not only after a theme-extension publish.
+{%- endcomment -%}
+<script src="/apps/product-options?assets=js" defer="defer"></script>
 
 {% schema %}
 {

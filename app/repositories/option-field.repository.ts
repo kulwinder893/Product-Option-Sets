@@ -89,6 +89,7 @@ function sanitizeSettings(field: FieldDraft) {
       title: product.title,
       handle: product.handle,
       imageUrl: product.imageUrl ?? null,
+      price: product.price ?? null,
     }));
   }
   return settings;

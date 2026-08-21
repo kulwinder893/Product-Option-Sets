@@ -71,8 +71,7 @@ function toStorefrontField(
   }));
 
   // Product picker stores add-ons in settings.products (not FieldChoice rows).
-  // Older theme JS only knows CHECKBOX / IMAGE_SWATCHES — map products into
-  // choices so shoppers see selectable add-ons instead of an empty text box.
+  // Keep type PRODUCT_PICKER so the storefront can render image + price cards.
   if (field.type === "PRODUCT_PICKER") {
     const products = Array.isArray(settings.products) ? settings.products : [];
     const choices =
@@ -87,23 +86,16 @@ function toStorefrontField(
               product.title,
             imageUrl: product.imageUrl ?? null,
             colorHex: null,
-            priceAddon: settings.priceAddon ?? null,
+            priceAddon: product.price ?? settings.priceAddon ?? null,
             isDefault: false,
             isDisabled: false,
           }))
         : baseChoices;
 
-    const hasImages = choices.some((choice) => Boolean(choice.imageUrl));
-    // Prefer image swatches when thumbnails exist; otherwise checkboxes.
-    // allowMultiple → CHECKBOX (radios can't multi-select).
-    const allowMultiple = settings.allowMultiple !== false;
-    const storefrontType =
-      allowMultiple || !hasImages ? "CHECKBOX" : "IMAGE_SWATCHES";
-
     return {
       id: field.id,
       parentId: field.parentId,
-      type: storefrontType,
+      type: "PRODUCT_PICKER",
       label: field.label,
       description: field.description,
       placeholder: field.placeholder,
@@ -122,8 +114,7 @@ function toStorefrontField(
         ...settings,
         productPicker: true,
         products,
-        allowMultiple,
-        swatchShape: settings.swatchShape ?? "rounded",
+        allowMultiple: settings.allowMultiple !== false,
       },
       choices,
     };

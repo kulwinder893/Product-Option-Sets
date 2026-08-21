@@ -11,13 +11,41 @@ function numericId(gid: string): string {
   return gid.split("/").pop() ?? gid;
 }
 
+function parsePrice(raw: unknown): number | null {
+  if (raw == null) return null;
+  if (typeof raw === "number" && isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw.replace(/[^0-9.-]/g, ""));
+    return isFinite(n) ? n : null;
+  }
+  if (typeof raw === "object" && raw !== null && "amount" in raw) {
+    return parsePrice((raw as { amount: unknown }).amount);
+  }
+  return null;
+}
+
+type PickerVariant = {
+  id: string;
+  title?: string;
+  price?: string | number | { amount?: string | number };
+};
+
 type PickerProduct = {
   id: string;
   title: string;
   handle?: string;
-  images?: Array<{ originalSrc?: string }>;
-  variants?: Array<{ id: string; title?: string }>;
+  images?: Array<{ originalSrc?: string; src?: string }>;
+  variants?: PickerVariant[];
 };
+
+function formatPrice(amount: number | null | undefined): string | null {
+  if (amount == null || !isFinite(amount)) return null;
+  return amount.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  });
+}
 
 /**
  * Lets merchants choose which catalog products appear in a Product picker
@@ -49,6 +77,10 @@ export function AddonProductsField({ products, onChange }: Props) {
           (current) => current.productGid === product.id,
         );
         const variant = product.variants?.[0];
+        const image =
+          product.images?.[0]?.originalSrc ||
+          product.images?.[0]?.src ||
+          null;
         return {
           id: existing?.id ?? tempId(),
           productGid: product.id,
@@ -57,7 +89,8 @@ export function AddonProductsField({ products, onChange }: Props) {
           variantId: variant?.id ? numericId(variant.id) : null,
           title: product.title,
           handle: product.handle || null,
-          imageUrl: product.images?.[0]?.originalSrc ?? null,
+          imageUrl: image,
+          price: parsePrice(variant?.price) ?? existing?.price ?? null,
         };
       }),
     );
@@ -93,34 +126,32 @@ export function AddonProductsField({ products, onChange }: Props) {
           <s-text type="strong">
             {products.length} product{products.length === 1 ? "" : "s"} selected
           </s-text>
-          {products.map((product) => (
-            <s-box
-              key={product.productGid}
-              padding="small-200"
-              borderWidth="base"
-              borderRadius="base"
-            >
-              <s-stack
-                direction="inline"
-                gap="small-200"
-                alignItems="center"
+          <s-grid gridTemplateColumns="1fr 1fr" gap="small-200">
+            {products.map((product) => (
+              <s-box
+                key={product.productGid}
+                padding="small-200"
+                borderWidth="base"
+                borderRadius="base"
               >
-                {product.imageUrl ? (
-                  <s-thumbnail
-                    src={product.imageUrl}
-                    alt={product.title}
-                    size="small"
-                  />
-                ) : (
-                  <s-icon type="product" />
-                )}
-                <s-stack direction="block" gap="none">
-                  <s-text type="strong">{product.title}</s-text>
-                  {product.handle ? (
-                    <s-text color="subdued">{product.handle}</s-text>
-                  ) : null}
-                </s-stack>
-                <div style={{ marginInlineStart: "auto" }}>
+                <s-stack direction="block" gap="small-200">
+                  {product.imageUrl ? (
+                    <s-thumbnail
+                      src={product.imageUrl}
+                      alt={product.title}
+                      size="large"
+                    />
+                  ) : (
+                    <s-icon type="product" />
+                  )}
+                  <s-stack direction="block" gap="none">
+                    <s-text type="strong">{product.title}</s-text>
+                    {formatPrice(product.price) ? (
+                      <s-text color="subdued">{formatPrice(product.price)}</s-text>
+                    ) : product.handle ? (
+                      <s-text color="subdued">{product.handle}</s-text>
+                    ) : null}
+                  </s-stack>
                   <s-button
                     type="button"
                     variant="tertiary"
@@ -134,11 +165,13 @@ export function AddonProductsField({ products, onChange }: Props) {
                         ),
                       )
                     }
-                  />
-                </div>
-              </s-stack>
-            </s-box>
-          ))}
+                  >
+                    Remove
+                  </s-button>
+                </s-stack>
+              </s-box>
+            ))}
+          </s-grid>
         </s-stack>
       )}
     </s-stack>

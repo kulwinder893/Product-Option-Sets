@@ -281,6 +281,9 @@ export class OptionSetRepository {
       }
 
       return copy;
+    }, {
+      maxWait: 15_000,
+      timeout: 60_000,
     });
   }
 

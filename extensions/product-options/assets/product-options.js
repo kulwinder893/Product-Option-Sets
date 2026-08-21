@@ -763,11 +763,25 @@
 
   Renderer.prototype.renderProductPicker = function (field, wrapper) {
     var settings = field.settings || {};
-    var products = Array.isArray(settings.products) ? settings.products : [];
+    var products = Array.isArray(settings.products) ? settings.products.slice() : [];
+    // Fallback when API mapped products into choices for older scripts.
+    if (!products.length && Array.isArray(field.choices)) {
+      products = field.choices.map(function (choice) {
+        return {
+          productGid: choice.id,
+          productId: choice.value,
+          variantId: choice.value,
+          title: choice.label,
+          imageUrl: choice.imageUrl,
+        };
+      });
+    }
+
     var allowMultiple = settings.allowMultiple !== false;
     var minQty = field.minQuantity != null ? Number(field.minQuantity) : 1;
     var maxQty = field.maxQuantity != null ? Number(field.maxQuantity) : null;
     if (!isFinite(minQty) || minQty < 1) minQty = 1;
+    var showQty = minQty !== 1 || (maxQty != null && maxQty !== 1);
 
     var list = el("div", ROOT_CLASS + "__addons");
     var rows = [];
@@ -787,7 +801,7 @@
       var check = el("input", ROOT_CLASS + "__addon-check");
       check.type = allowMultiple ? "checkbox" : "radio";
       check.name = ROOT_CLASS + "-addon-" + field.id;
-      check.value = product.productId || product.productGid;
+      check.value = product.variantId || product.productId || product.productGid;
 
       var media = el("span", ROOT_CLASS + "__addon-media");
       if (product.imageUrl) {
@@ -800,32 +814,43 @@
       body.appendChild(
         el("span", ROOT_CLASS + "__addon-title", product.title || "Product")
       );
+      body.appendChild(el("span", ROOT_CLASS + "__addon-tag", "Add-on"));
 
-      var qty = el("input", ROOT_CLASS + "__addon-qty " + ROOT_CLASS + "__input");
-      qty.type = "number";
-      qty.min = String(minQty);
-      if (maxQty != null && isFinite(maxQty)) qty.max = String(maxQty);
-      qty.value = String(minQty);
-      qty.disabled = true;
+      var qty = null;
+      if (showQty) {
+        qty = el("input", ROOT_CLASS + "__addon-qty " + ROOT_CLASS + "__input");
+        qty.type = "number";
+        qty.min = String(minQty);
+        if (maxQty != null && isFinite(maxQty)) qty.max = String(maxQty);
+        qty.value = String(minQty);
+        qty.disabled = true;
+        qty.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+      }
 
       check.addEventListener("change", function () {
         if (!allowMultiple && check.checked) {
           rows.forEach(function (other) {
             if (other.check !== check) {
               other.check.checked = false;
-              other.qty.disabled = true;
+              if (other.qty) other.qty.disabled = true;
+              other.row.classList.remove("is-selected");
             }
           });
         }
-        qty.disabled = !check.checked;
+        if (qty) qty.disabled = !check.checked;
+        if (check.checked) row.classList.add("is-selected");
+        else row.classList.remove("is-selected");
       });
 
       row.appendChild(check);
       row.appendChild(media);
       row.appendChild(body);
-      row.appendChild(qty);
+      if (qty) row.appendChild(qty);
       list.appendChild(row);
-      rows.push({ product: product, check: check, qty: qty });
+      rows.push({ product: product, check: check, qty: qty, row: row });
     });
 
     wrapper.appendChild(list);
@@ -841,13 +866,17 @@
       var cents = toCents(settings.priceAddon);
 
       selected.forEach(function (row) {
-        var qtyVal = Number(row.qty.value);
-        if (!isFinite(qtyVal) || qtyVal < minQty) qtyVal = minQty;
-        if (maxQty != null && isFinite(maxQty) && qtyVal > maxQty) qtyVal = maxQty;
+        var qtyVal = minQty;
+        if (row.qty) {
+          qtyVal = Number(row.qty.value);
+          if (!isFinite(qtyVal) || qtyVal < minQty) qtyVal = minQty;
+          if (maxQty != null && isFinite(maxQty) && qtyVal > maxQty) qtyVal = maxQty;
+        }
         labels.push(row.product.title + (qtyVal > 1 ? " ×" + qtyVal : ""));
-        if (row.product.variantId) {
+        var variantId = row.product.variantId || row.product.productId;
+        if (variantId && String(variantId).indexOf("gid://") !== 0) {
           addons.push({
-            id: Number(row.product.variantId) || row.product.variantId,
+            id: Number(variantId) || variantId,
             quantity: qtyVal,
           });
         }
@@ -871,6 +900,16 @@
 
   /** Returns a reader for the field's current value, or null when static. */
   Renderer.prototype.renderControl = function (field, wrapper) {
+    var settings = field.settings || {};
+    // Newer + older payloads: product picker may arrive as PRODUCT_PICKER or as
+    // CHECKBOX/IMAGE_SWATCHES with settings.productPicker + settings.products.
+    if (
+      field.type === "PRODUCT_PICKER" ||
+      (settings.productPicker && Array.isArray(settings.products))
+    ) {
+      return this.renderProductPicker(field, wrapper);
+    }
+
     switch (field.type) {
       case "DROPDOWN":
         return this.renderSelect(field, wrapper);
@@ -886,8 +925,6 @@
         return this.renderSwatches(field, wrapper);
       case "FILE_UPLOAD":
         return this.renderFileUpload(field, wrapper);
-      case "PRODUCT_PICKER":
-        return this.renderProductPicker(field, wrapper);
       case "RANGE_SLIDER":
         return this.renderRange(field, wrapper);
       case "DATE_RANGE":

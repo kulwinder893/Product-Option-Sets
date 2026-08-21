@@ -451,30 +451,43 @@
 /* Product picker add-ons -------------------------------------------- */
 
 .product-options__addons {
-  display: grid;
-  gap: var(--po-choice-gap, 12px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .product-options__addon {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 48px 1fr auto;
-  gap: 10px;
-  align-items: center;
+  grid-template-rows: auto 1fr auto;
+  width: 112px;
   padding: 8px;
   border: 1px solid var(--product-options-border);
-  border-radius: var(--product-options-radius);
+  border-radius: var(--product-options-radius, 10px);
+  background: #fff;
   cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.product-options__addon.is-selected,
+.product-options__addon:has(.product-options__addon-check:checked) {
+  border-color: var(--product-options-accent);
+  box-shadow: 0 0 0 1px var(--product-options-accent);
 }
 
 .product-options__addon-check {
-  width: var(--po-checkbox-size, 16px);
-  height: var(--po-checkbox-size, 16px);
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
   margin: 0;
 }
 
 .product-options__addon-media {
-  width: 48px;
-  height: 48px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 8px;
   border: 1px solid var(--product-options-border);
   background-size: cover;
@@ -493,14 +506,34 @@
   background-size: 10px 10px;
 }
 
+.product-options__addon-body {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
 .product-options__addon-title {
   display: block;
+  font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--po-color-value, inherit);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-options__addon-tag {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--po-color-help, #6b7280);
 }
 
 .product-options__addon-qty {
-  width: 72px;
-  min-height: 36px !important;
-  padding: 4px 8px;
+  width: 100%;
+  min-height: 32px !important;
+  margin-top: 6px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
 }

@@ -58,6 +58,77 @@ function matchesConditions(
 function toStorefrontField(
   field: MatchableOptionSet["fields"][number],
 ): StorefrontField {
+  const settings = safeJsonParse<FieldSettings>(field.settings, {});
+  const baseChoices = field.choices.map((choice) => ({
+    id: choice.id,
+    label: choice.label,
+    value: choice.value,
+    imageUrl: choice.imageUrl,
+    colorHex: choice.colorHex,
+    priceAddon: choice.priceAddon,
+    isDefault: choice.isDefault,
+    isDisabled: choice.isDisabled,
+  }));
+
+  // Product picker stores add-ons in settings.products (not FieldChoice rows).
+  // Older theme JS only knows CHECKBOX / IMAGE_SWATCHES — map products into
+  // choices so shoppers see selectable add-ons instead of an empty text box.
+  if (field.type === "PRODUCT_PICKER") {
+    const products = Array.isArray(settings.products) ? settings.products : [];
+    const choices =
+      products.length > 0
+        ? products.map((product, index) => ({
+            id: product.productGid || product.productId || `addon-${index}`,
+            label: product.title || "Product",
+            value:
+              product.variantId ||
+              product.productId ||
+              product.productGid ||
+              product.title,
+            imageUrl: product.imageUrl ?? null,
+            colorHex: null,
+            priceAddon: settings.priceAddon ?? null,
+            isDefault: false,
+            isDisabled: false,
+          }))
+        : baseChoices;
+
+    const hasImages = choices.some((choice) => Boolean(choice.imageUrl));
+    // Prefer image swatches when thumbnails exist; otherwise checkboxes.
+    // allowMultiple → CHECKBOX (radios can't multi-select).
+    const allowMultiple = settings.allowMultiple !== false;
+    const storefrontType =
+      allowMultiple || !hasImages ? "CHECKBOX" : "IMAGE_SWATCHES";
+
+    return {
+      id: field.id,
+      parentId: field.parentId,
+      type: storefrontType,
+      label: field.label,
+      description: field.description,
+      placeholder: field.placeholder,
+      required: field.required,
+      hidden: field.hidden,
+      defaultValue: field.defaultValue,
+      helpText: field.helpText,
+      tooltip: field.tooltip,
+      customErrorMessage: field.customErrorMessage,
+      cssClass: field.cssClass,
+      minLength: field.minLength,
+      maxLength: field.maxLength,
+      minQuantity: field.minQuantity,
+      maxQuantity: field.maxQuantity,
+      settings: {
+        ...settings,
+        productPicker: true,
+        products,
+        allowMultiple,
+        swatchShape: settings.swatchShape ?? "rounded",
+      },
+      choices,
+    };
+  }
+
   return {
     id: field.id,
     parentId: field.parentId,
@@ -76,17 +147,8 @@ function toStorefrontField(
     maxLength: field.maxLength,
     minQuantity: field.minQuantity,
     maxQuantity: field.maxQuantity,
-    settings: safeJsonParse<FieldSettings>(field.settings, {}),
-    choices: field.choices.map((choice) => ({
-      id: choice.id,
-      label: choice.label,
-      value: choice.value,
-      imageUrl: choice.imageUrl,
-      colorHex: choice.colorHex,
-      priceAddon: choice.priceAddon,
-      isDefault: choice.isDefault,
-      isDisabled: choice.isDisabled,
-    })),
+    settings,
+    choices: baseChoices,
   };
 }
 

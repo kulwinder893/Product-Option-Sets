@@ -39,6 +39,8 @@ export type FieldSettings = {
 
   /** Product picker — catalog products shoppers can add as add-ons */
   products?: AddonProduct[];
+  /** Set on the storefront payload so newer JS can render add-on cards. */
+  productPicker?: boolean;
 };
 
 /** A catalog product offered inside a Product picker field. */

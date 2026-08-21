@@ -93,7 +93,16 @@ export function StyleSettingsEditor({ settings, onChange }: SettingsEditorProps)
             {...(style.showSelectedValue ? { checked: true } : {})}
             onChange={(event: Event) =>
               patchStyle({
-                showSelectedValue: (event.currentTarget as HTMLInputElement).checked,
+                showSelectedValue: Boolean(
+                  (event.currentTarget as HTMLInputElement).checked,
+                ),
+              })
+            }
+            onInput={(event: Event) =>
+              patchStyle({
+                showSelectedValue: Boolean(
+                  (event.currentTarget as HTMLInputElement).checked,
+                ),
               })
             }
           />

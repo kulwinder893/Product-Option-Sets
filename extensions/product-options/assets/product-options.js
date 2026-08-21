@@ -585,8 +585,8 @@
   Renderer.prototype.renderFileUpload = function (field, wrapper) {
     var settings = field.settings || {};
     var translations = this.context.translations || {};
-    var button = el("button", ROOT_CLASS + "__button " + ROOT_CLASS + "__upload");
-    button.type = "button";
+
+    var button = el("span", ROOT_CLASS + "__button " + ROOT_CLASS + "__upload");
     button.textContent = translations.uploadFile || "Upload file";
 
     var input = el("input", ROOT_CLASS + "__file-input");
@@ -606,9 +606,6 @@
     var filename = el("span", ROOT_CLASS + "__filename");
     filename.hidden = true;
 
-    button.addEventListener("click", function () {
-      input.click();
-    });
     input.addEventListener("change", function () {
       var names = [];
       if (input.files) {
@@ -620,8 +617,8 @@
       filename.hidden = names.length === 0;
     });
 
+    button.appendChild(input);
     wrapper.appendChild(button);
-    wrapper.appendChild(input);
     wrapper.appendChild(filename);
 
     return function () {

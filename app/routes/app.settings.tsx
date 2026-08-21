@@ -6,6 +6,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { settingsService } from "../services/settings.service";
@@ -96,6 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function SettingsPage() {
   const { settings: initial } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<ActionData>();
+  const shopify = useAppBridge();
   const [settings, setSettings] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const savedSnapshot = useRef(JSON.stringify(initial));
@@ -113,12 +115,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!fetcher.data || fetcher.state !== "idle") return;
+    if (fetcher.data.message) {
+      shopify.toast.show(fetcher.data.message, { isError: !fetcher.data.ok });
+    }
     if (fetcher.data.ok && fetcher.data.settings) {
       setSettings(fetcher.data.settings);
       savedSnapshot.current = JSON.stringify(fetcher.data.settings);
       setDirty(false);
     }
-  }, [fetcher.data, fetcher.state]);
+  }, [fetcher.data, fetcher.state, shopify]);
 
   const updateSettings = (next: AppSettingsState) => {
     setSettings(next);
@@ -153,12 +158,12 @@ export default function SettingsPage() {
   const saveLabel = saving
     ? "Saving…"
     : dirty
-      ? "Unsaved changes"
+      ? "Unsaved changes — click Save"
       : fetcher.data?.ok
         ? "Settings saved"
         : fetcher.data && !fetcher.data.ok
           ? fetcher.data.message
-          : "All changes saved";
+          : "Ready to save";
 
   return (
     <s-page heading="Settings">
@@ -167,7 +172,6 @@ export default function SettingsPage() {
         variant="primary"
         onClick={save}
         {...(saving ? { loading: true } : {})}
-        {...(!dirty || saving ? { disabled: true } : {})}
       >
         Save settings
       </s-button>
@@ -246,7 +250,7 @@ export default function SettingsPage() {
                 type="button"
                 className="osp-save-bar__button"
                 onClick={save}
-                disabled={!dirty || saving}
+                disabled={saving}
               >
                 {saving ? "Saving…" : "Save settings"}
               </button>

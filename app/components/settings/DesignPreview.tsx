@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import type { AppSettingsState } from "../../types/app-design";
 import { designToCss, googleFontsUrl } from "../../utils/app-design";
 import "../../../extensions/product-options/assets/product-options.css";
@@ -92,6 +92,27 @@ function Swatches({
         </label>
       ))}
     </div>
+  );
+}
+
+function PreviewFileUpload({ label }: { label: string }) {
+  const [filename, setFilename] = useState("");
+
+  return (
+    <Field title="File upload" selected={filename || undefined}>
+      <span className="product-options__button product-options__upload">
+        {label}
+        <input
+          className="product-options__file-input"
+          type="file"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            setFilename(file?.name || "");
+          }}
+        />
+      </span>
+      {filename ? <span className="product-options__filename">{filename}</span> : null}
+    </Field>
   );
 }
 
@@ -202,16 +223,9 @@ export function DesignPreview({ settings }: Props) {
                 className="product-options__input product-options__quantity"
                 defaultValue="1"
               />
-              <p className="product-options__error">{translations.errorRequired}</p>
             </Field>
 
-            <Field title="File upload">
-              <label className="product-options__button product-options__upload">
-                {translations.uploadFile}
-                <input className="product-options__file-input" type="file" />
-              </label>
-              <span className="product-options__filename">sample.png</span>
-            </Field>
+            <PreviewFileUpload label={translations.uploadFile} />
 
             <div className="product-options__total">
               {translations.optionsTotal}:{" "}

@@ -95,9 +95,13 @@
   cursor: pointer;
 }
 
+.osp-save-bar__button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 .osp-save-bar__button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .osp-sections {

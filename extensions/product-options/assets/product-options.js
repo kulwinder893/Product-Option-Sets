@@ -761,6 +761,106 @@
     };
   };
 
+  Renderer.prototype.renderProductPicker = function (field, wrapper) {
+    var settings = field.settings || {};
+    var products = Array.isArray(settings.products) ? settings.products : [];
+    var allowMultiple = settings.allowMultiple !== false;
+    var minQty = field.minQuantity != null ? Number(field.minQuantity) : 1;
+    var maxQty = field.maxQuantity != null ? Number(field.maxQuantity) : null;
+    if (!isFinite(minQty) || minQty < 1) minQty = 1;
+
+    var list = el("div", ROOT_CLASS + "__addons");
+    var rows = [];
+
+    if (!products.length) {
+      list.appendChild(
+        el("p", ROOT_CLASS + "__help", "No add-on products configured.")
+      );
+      wrapper.appendChild(list);
+      return function () {
+        return { value: "", cents: 0 };
+      };
+    }
+
+    products.forEach(function (product) {
+      var row = el("label", ROOT_CLASS + "__addon");
+      var check = el("input", ROOT_CLASS + "__addon-check");
+      check.type = allowMultiple ? "checkbox" : "radio";
+      check.name = ROOT_CLASS + "-addon-" + field.id;
+      check.value = product.productId || product.productGid;
+
+      var media = el("span", ROOT_CLASS + "__addon-media");
+      if (product.imageUrl) {
+        media.style.backgroundImage = 'url("' + product.imageUrl + '")';
+      } else {
+        media.classList.add("is-empty");
+      }
+
+      var body = el("span", ROOT_CLASS + "__addon-body");
+      body.appendChild(
+        el("span", ROOT_CLASS + "__addon-title", product.title || "Product")
+      );
+
+      var qty = el("input", ROOT_CLASS + "__addon-qty " + ROOT_CLASS + "__input");
+      qty.type = "number";
+      qty.min = String(minQty);
+      if (maxQty != null && isFinite(maxQty)) qty.max = String(maxQty);
+      qty.value = String(minQty);
+      qty.disabled = true;
+
+      check.addEventListener("change", function () {
+        if (!allowMultiple && check.checked) {
+          rows.forEach(function (other) {
+            if (other.check !== check) {
+              other.check.checked = false;
+              other.qty.disabled = true;
+            }
+          });
+        }
+        qty.disabled = !check.checked;
+      });
+
+      row.appendChild(check);
+      row.appendChild(media);
+      row.appendChild(body);
+      row.appendChild(qty);
+      list.appendChild(row);
+      rows.push({ product: product, check: check, qty: qty });
+    });
+
+    wrapper.appendChild(list);
+
+    return function () {
+      var selected = rows.filter(function (row) {
+        return row.check.checked;
+      });
+      if (!selected.length) return { value: "", cents: 0 };
+
+      var labels = [];
+      var addons = [];
+      var cents = toCents(settings.priceAddon);
+
+      selected.forEach(function (row) {
+        var qtyVal = Number(row.qty.value);
+        if (!isFinite(qtyVal) || qtyVal < minQty) qtyVal = minQty;
+        if (maxQty != null && isFinite(maxQty) && qtyVal > maxQty) qtyVal = maxQty;
+        labels.push(row.product.title + (qtyVal > 1 ? " ×" + qtyVal : ""));
+        if (row.product.variantId) {
+          addons.push({
+            id: Number(row.product.variantId) || row.product.variantId,
+            quantity: qtyVal,
+          });
+        }
+      });
+
+      return {
+        value: labels.join(", "),
+        cents: cents,
+        addonItems: addons,
+      };
+    };
+  };
+
   Renderer.prototype.renderHidden = function (field) {
     var settings = field.settings || {};
     var value = settings.hiddenValue || field.defaultValue || "";
@@ -786,6 +886,8 @@
         return this.renderSwatches(field, wrapper);
       case "FILE_UPLOAD":
         return this.renderFileUpload(field, wrapper);
+      case "PRODUCT_PICKER":
+        return this.renderProductPicker(field, wrapper);
       case "RANGE_SLIDER":
         return this.renderRange(field, wrapper);
       case "DATE_RANGE":
@@ -918,6 +1020,7 @@
         cents: result.cents || 0,
         fileInput: result.fileInput || null,
         isFile: Boolean(result.isFile),
+        addonItems: Array.isArray(result.addonItems) ? result.addonItems : [],
       };
     });
   };
@@ -1097,6 +1200,21 @@
     });
   };
 
+  Controller.prototype.addonItemsFor = function (variantId) {
+    var input = this.form.querySelector('[name="id"]');
+    var formVariantId = input ? String(input.value) : null;
+    if (variantId && formVariantId && variantId !== formVariantId) return [];
+
+    var items = [];
+    this.collect().forEach(function (entry) {
+      if (!entry.addonItems || !entry.addonItems.length) return;
+      entry.addonItems.forEach(function (item) {
+        items.push(item);
+      });
+    });
+    return items;
+  };
+
   Controller.prototype.bind = function () {
     var self = this;
 
@@ -1179,6 +1297,15 @@
     return files;
   }
 
+  function collectAddonItems(variantId) {
+    var items = [];
+    propertySources.forEach(function (source) {
+      if (!document.documentElement.contains(source.form)) return;
+      items = items.concat(source.controller.addonItemsFor(variantId));
+    });
+    return items;
+  }
+
   function isCartAddUrl(url) {
     return typeof url === "string" && url.indexOf("/cart/add") !== -1;
   }
@@ -1208,7 +1335,13 @@
   function injectIntoPayload(payload) {
     if (!payload || typeof payload !== "object") return payload;
 
-    var items = Array.isArray(payload.items) ? payload.items : [payload];
+    var primaryId =
+      Array.isArray(payload.items) && payload.items[0]
+        ? payload.items[0].id
+        : payload.id;
+    var variantKey = primaryId != null ? String(primaryId) : null;
+
+    var items = Array.isArray(payload.items) ? payload.items.slice() : [payload];
     items.forEach(function (item) {
       if (!item || typeof item !== "object") return;
       var properties = collectProperties(item.id != null ? String(item.id) : null);
@@ -1216,7 +1349,17 @@
       // Theme-supplied properties win so we never overwrite their data.
       item.properties = Object.assign({}, properties, item.properties || {});
     });
-    return payload;
+
+    var addons = collectAddonItems(variantKey);
+    if (addons.length) {
+      return { items: items.concat(addons) };
+    }
+
+    if (Array.isArray(payload.items)) {
+      payload.items = items;
+      return payload;
+    }
+    return items[0];
   }
 
   function transformBody(body) {

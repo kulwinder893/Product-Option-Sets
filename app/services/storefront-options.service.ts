@@ -12,7 +12,7 @@ import { assertShop, safeJsonParse } from "../utils/errors";
 import { settingsService } from "./settings.service";
 
 /** Field types whose storefront rendering is not implemented yet. */
-const UNSUPPORTED_TYPES = new Set(["PRODUCT_PICKER"]);
+const UNSUPPORTED_TYPES = new Set<string>();
 
 function conditionSubject(
   condition: ProductCondition,

@@ -240,6 +240,8 @@ export const FIELD_TYPES: FieldTypeMeta[] = [
     label: "Product picker",
     category: "Advanced",
     icon: "product",
+    supportsQuantity: true,
+    defaultSettings: { products: [], allowMultiple: true },
   },
   {
     ...base,

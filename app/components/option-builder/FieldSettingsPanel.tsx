@@ -1,5 +1,6 @@
 import { fieldMeta } from "../../constants/field-types";
 import type { ChoiceDraft, FieldDraft, FieldSettings } from "../../types/field";
+import { AddonProductsField } from "./AddonProductsField";
 import { ChoicesEditor } from "./ChoicesEditor";
 
 type Props = {
@@ -128,6 +129,25 @@ export function FieldSettingsPanel({
             onUpdate={onUpdateChoice}
             onRemove={onRemoveChoice}
             onMove={onMoveChoice}
+          />
+        </>
+      ) : null}
+
+      {field.type === "PRODUCT_PICKER" ? (
+        <>
+          <s-divider />
+          <AddonProductsField
+            products={field.settings.products ?? []}
+            onChange={(products) => patchSettings({ products })}
+          />
+          <s-checkbox
+            label="Allow selecting multiple products"
+            {...(field.settings.allowMultiple !== false ? { checked: true } : {})}
+            onChange={(e: Event) =>
+              patchSettings({
+                allowMultiple: (e.currentTarget as HTMLInputElement).checked,
+              })
+            }
           />
         </>
       ) : null}

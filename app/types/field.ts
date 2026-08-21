@@ -36,6 +36,21 @@ export type FieldSettings = {
 
   /** Hidden field */
   hiddenValue?: string;
+
+  /** Product picker — catalog products shoppers can add as add-ons */
+  products?: AddonProduct[];
+};
+
+/** A catalog product offered inside a Product picker field. */
+export type AddonProduct = {
+  id: string;
+  productGid: string;
+  productId: string;
+  variantGid?: string | null;
+  variantId?: string | null;
+  title: string;
+  handle: string | null;
+  imageUrl?: string | null;
 };
 
 export type ChoiceDraft = {

@@ -193,6 +193,41 @@ function FieldPreview({ field, all }: { field: FieldDraft; all: FieldDraft[] }) 
         </s-stack>
       );
 
+    case "PRODUCT_PICKER": {
+      const products = field.settings.products ?? [];
+      return (
+        <s-stack direction="block" gap="small-500">
+          {label}
+          {description}
+          {products.length === 0 ? (
+            <s-text color="subdued">No add-on products selected.</s-text>
+          ) : (
+            <s-stack direction="block" gap="small-200">
+              {products.map((product) => (
+                <s-stack
+                  key={product.productGid}
+                  direction="inline"
+                  gap="small-200"
+                  alignItems="center"
+                >
+                  {product.imageUrl ? (
+                    <s-thumbnail
+                      src={product.imageUrl}
+                      alt={product.title}
+                      size="small"
+                    />
+                  ) : (
+                    <s-icon type="product" />
+                  )}
+                  <s-checkbox label={product.title} />
+                </s-stack>
+              ))}
+            </s-stack>
+          )}
+        </s-stack>
+      );
+    }
+
     default:
       return (
         <s-text-field

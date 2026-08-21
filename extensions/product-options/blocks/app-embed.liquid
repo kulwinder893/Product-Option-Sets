@@ -3,6 +3,16 @@
   tidying script has to be available outside the product template too.
 {%- endcomment -%}
 {%- assign accent_color = block.settings.accent_color | default: '#1a1a1a' -%}
+{%- comment -%}
+  App Design (Spacing, Color, Custom CSS) is served from the app proxy so it
+  updates as soon as settings are saved — no theme-extension redeploy required
+  for design-only changes.
+{%- endcomment -%}
+<link
+  rel="stylesheet"
+  href="/apps/product-options?assets=design&shop={{ shop.permanent_domain | url_encode }}"
+  data-product-options-design-link
+>
 <script type="application/json" data-product-options-context>
   {
     "shop": {{ shop.permanent_domain | json }},

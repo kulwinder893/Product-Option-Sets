@@ -293,19 +293,66 @@ function cssVariables(design: AppDesignSettings): string {
 `.trimEnd();
 }
 
-/** Turns App Design into CSS. Layout is in product-options.css; this only sets variables + fonts. */
+/**
+ * Concrete layout rules so Spacing / Shape beat theme-extension defaults even
+ * when the injected <style> tag loses the cascade war on CSS variables alone.
+ */
+function layoutRules(design: AppDesignSettings, scope?: string): string {
+  const { spacing, style, shapes, sizes } = design;
+  const direction = style.choiceLayout === "vertical" ? "column" : "row";
+  const swatchRadius =
+    shapes.swatchShape === "circle"
+      ? "50%"
+      : shapes.swatchShape === "rounded"
+        ? `${shapes.swatchRadius}px`
+        : "0px";
+
+  return `
+${rootSelector(scope)} {
+  gap: ${spacing.fieldGap}px !important;
+  padding: ${spacing.widgetPadding}px !important;
+}
+${scopedSelector(".product-options__field", scope)} {
+  gap: ${spacing.labelGap}px !important;
+}
+${scopedSelector(".product-options__choices, .product-options__buttons", scope)} {
+  gap: ${spacing.choiceGap}px !important;
+  flex-direction: ${direction} !important;
+}
+${scopedSelector(".product-options__swatches", scope)} {
+  gap: ${spacing.swatchGap}px !important;
+}
+${scopedSelector(".product-options__swatch-visual", scope)} {
+  width: ${sizes.swatchSize}px !important;
+  height: ${sizes.swatchSize}px !important;
+  border-radius: ${swatchRadius} !important;
+}
+${scopedSelector(".product-options__input, .product-options__select, .product-options__textarea", scope)} {
+  min-height: ${sizes.inputHeight}px !important;
+  border-radius: ${shapes.inputRadius}px !important;
+}
+${scopedSelector(".product-options__select", scope)} {
+  min-height: ${sizes.dropdownHeight}px !important;
+}`.trim();
+}
+
+/** Turns App Design into CSS. Layout is in product-options.css; this sets variables, layout, fonts, and Custom CSS. */
 export function designToCss(design: AppDesignSettings, scope?: string): string {
   const root = rootSelector(scope);
   const hideSelected = design.style.showSelectedValue
     ? ""
     : `\n${scopedSelector(".product-options__selected-value", scope)} { display: none; }`;
   const fonts = fontRules(design.fonts, scope);
-  const custom = design.customCss?.trim() ? `\n${design.customCss}` : "";
+  const layout = layoutRules(design, scope);
+  const custom = design.customCss?.trim()
+    ? `\n/* Merchant Custom CSS */\n${design.customCss.trim()}`
+    : "";
   return `${root} {
 ${cssVariables(design)}
   gap: var(--po-field-gap);
   padding: var(--po-widget-padding);
 }
+${layout}
 ${fonts}${hideSelected}${custom}`;
 }
 
@@ -314,6 +361,7 @@ export function toStorefrontDesign(
 ): StorefrontDesignPayload {
   return {
     css: designToCss(settings.design),
+    customCss: settings.design.customCss || "",
     googleFontsUrl: googleFontsUrl(settings.design.fonts),
     fonts: settings.design.fonts,
     style: settings.design.style,

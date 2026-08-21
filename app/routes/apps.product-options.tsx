@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 
 import { authenticate } from "../shopify.server";
 import { storefrontOptionsService } from "../services/storefront-options.service";
+import { settingsService } from "../services/settings.service";
 import type { StorefrontProductContext } from "../types/storefront";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -12,6 +13,17 @@ function jsonResponse(body: unknown, status = 200) {
       // Shopify's proxy sits in front of this route; keep responses private so
       // one shop's option sets are never served to another.
       "Cache-Control": "private, no-store",
+    },
+  });
+}
+
+function cssResponse(css: string, status = 200) {
+  return new Response(css, {
+    status,
+    headers: {
+      "Content-Type": "text/css; charset=utf-8",
+      // Short cache so Spacing / Custom CSS updates show up quickly on the storefront.
+      "Cache-Control": "public, max-age=30, must-revalidate",
     },
   });
 }
@@ -41,7 +53,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const shop = session?.shop ?? url.searchParams.get("shop");
   if (!shop) {
+    if (url.searchParams.get("assets") === "design") {
+      return cssResponse("/* product-options: missing shop */", 401);
+    }
     return jsonResponse({ optionSets: [], design: null }, 401);
+  }
+
+  // Theme can <link> this for Spacing / Color / Custom CSS without waiting on JS.
+  if (url.searchParams.get("assets") === "design") {
+    try {
+      const design = await settingsService.getStorefrontDesign(shop);
+      return cssResponse(design.css || "/* product-options: empty design */");
+    } catch (error) {
+      console.error("Storefront design CSS failed:", error);
+      return cssResponse("/* product-options: design error */", 500);
+    }
   }
 
   const product = readProductContext(url);

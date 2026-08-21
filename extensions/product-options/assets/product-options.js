@@ -145,18 +145,39 @@
       document.head.appendChild(link);
     }
 
+    // Prefer a live stylesheet from the app proxy (Spacing + Custom CSS), then
+    // also inject the JSON payload CSS so older themes without the <link> still work.
+    if (context.proxyPath && !document.querySelector("link[data-product-options-design-link]")) {
+      var designLink = document.createElement("link");
+      designLink.rel = "stylesheet";
+      designLink.href =
+        context.proxyPath +
+        "?assets=design&shop=" +
+        encodeURIComponent(context.shop || "") +
+        "&v=" +
+        Date.now();
+      designLink.setAttribute("data-product-options-design-link", "");
+      (document.body || document.head).appendChild(designLink);
+    }
+
     var existing = document.querySelector("style[data-product-options-design]");
     if (existing) existing.remove();
-    if (design.css) {
+    var cssText = design.css || "";
+    // If Custom CSS was saved but somehow missing from the compiled css blob, append it.
+    if (design.customCss && cssText.indexOf(design.customCss) === -1) {
+      cssText += "\n" + design.customCss;
+    }
+    if (cssText) {
       var style = document.createElement("style");
       style.setAttribute("data-product-options-design", "");
-      style.textContent = design.css;
+      style.textContent = cssText;
       // Append last so merchant tokens beat the extension stylesheet defaults.
       (document.body || document.head).appendChild(style);
     }
 
     if (design.translations) context.translations = design.translations;
     if (design.style) context.designStyle = design.style;
+    if (design.shapes) context.designShapes = design.shapes;
 
     var advanced = design.advanced;
     if (advanced) {
@@ -566,7 +587,10 @@
   Renderer.prototype.renderSwatches = function (field, wrapper) {
     var self = this;
     var isColor = field.type === "COLOR_SWATCHES";
-    var shape = (field.settings && field.settings.swatchShape) || (isColor ? "circle" : "square");
+    var shape =
+      (field.settings && field.settings.swatchShape) ||
+      (this.context.designShapes && this.context.designShapes.swatchShape) ||
+      (isColor ? "circle" : "square");
     var groupName = ROOT_CLASS + "-" + field.id;
 
     var list = el(

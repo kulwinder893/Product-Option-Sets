@@ -132,6 +132,7 @@ export type SettingsEditorProps = {
 
 export type StorefrontDesignPayload = {
   css: string;
+  customCss: string;
   googleFontsUrl: string | null;
   fonts: FontSettings;
   style: StyleSettings;

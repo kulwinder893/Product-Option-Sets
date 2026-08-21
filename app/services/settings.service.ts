@@ -17,10 +17,14 @@ export class SettingsService {
   async getAll(shop: string): Promise<AppSettingsState> {
     assertShop(shop);
     const row = await settingsRepository.findByShop(shop);
+    const theme = safeJsonParse<AppDesignSettings>(row?.theme, DEFAULT_DESIGN);
+    // Prefer the dedicated column, but fall back to CSS stored inside theme JSON
+    // so a null column never wipes merchant Custom CSS on read.
+    const customCss = row?.customCss ?? theme.customCss ?? "";
     return normalizeAppSettings({
       design: {
-        ...safeJsonParse<AppDesignSettings>(row?.theme, DEFAULT_DESIGN),
-        customCss: row?.customCss ?? "",
+        ...theme,
+        customCss,
       },
       translations: safeJsonParse(row?.translations, {}),
       advanced: safeJsonParse(row?.general, {}),

@@ -1,5 +1,6 @@
 import type { FieldType } from "@prisma/client";
 import type { ChoiceDraft } from "../../types/field";
+import { ChoiceImageField } from "./ChoiceImageField";
 
 type Props = {
   fieldType: FieldType;
@@ -87,7 +88,10 @@ export function ChoicesEditor({
               />
             </s-grid>
 
-            <s-grid gridTemplateColumns="1fr 1fr" gap="small-200">
+            <s-grid
+              gridTemplateColumns={needsImage ? "1fr" : "1fr 1fr"}
+              gap="small-200"
+            >
               <s-number-field
                 label="Price add-on"
                 value={choice.priceAddon == null ? "" : String(choice.priceAddon)}
@@ -110,18 +114,14 @@ export function ChoicesEditor({
                   }
                 />
               ) : null}
-              {needsImage ? (
-                <s-url-field
-                  label="Image URL"
-                  value={choice.imageUrl ?? ""}
-                  onInput={(e: Event) =>
-                    onUpdate(choice.id, {
-                      imageUrl: (e.currentTarget as HTMLInputElement).value || null,
-                    })
-                  }
-                />
-              ) : null}
             </s-grid>
+
+            {needsImage ? (
+              <ChoiceImageField
+                imageUrl={choice.imageUrl}
+                onChange={(imageUrl) => onUpdate(choice.id, { imageUrl })}
+              />
+            ) : null}
 
             <s-stack direction="inline" gap="base">
               <s-checkbox

@@ -26,6 +26,9 @@ export function SizeSettingsEditor({ settings, onChange }: SettingsEditorProps) 
               onChange={(event: Event) =>
                 update(field.key, Number((event.currentTarget as HTMLInputElement).value))
               }
+              onInput={(event: Event) =>
+                update(field.key, Number((event.currentTarget as HTMLInputElement).value))
+              }
             />
           ))}
         </s-stack>

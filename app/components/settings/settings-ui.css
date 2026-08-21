@@ -63,6 +63,43 @@
   color: var(--osp-accent);
 }
 
+.osp-status--dirty {
+  color: #9a5b1a;
+  background: #fff3e0;
+}
+
+.osp-save-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--osp-line);
+  border-radius: 16px;
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 8px 24px rgba(36, 48, 64, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.osp-save-bar__button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: var(--osp-ink);
+  color: #fffdf9;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.osp-save-bar__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .osp-sections {
   display: flex;
   gap: 8px;

@@ -582,6 +582,64 @@
     };
   };
 
+  Renderer.prototype.renderFileUpload = function (field, wrapper) {
+    var settings = field.settings || {};
+    var translations = this.context.translations || {};
+    var button = el("button", ROOT_CLASS + "__button " + ROOT_CLASS + "__upload");
+    button.type = "button";
+    button.textContent = translations.uploadFile || "Upload file";
+
+    var input = el("input", ROOT_CLASS + "__file-input");
+    input.type = "file";
+    input.setAttribute("data-product-options-file", field.id);
+    if (settings.maxFiles && Number(settings.maxFiles) > 1) {
+      input.multiple = true;
+    }
+    if (settings.allowedExtensions && settings.allowedExtensions.length) {
+      input.accept = settings.allowedExtensions
+        .map(function (ext) {
+          return "." + String(ext).replace(/^\./, "");
+        })
+        .join(",");
+    }
+
+    var filename = el("span", ROOT_CLASS + "__filename");
+    filename.hidden = true;
+
+    button.addEventListener("click", function () {
+      input.click();
+    });
+    input.addEventListener("change", function () {
+      var names = [];
+      if (input.files) {
+        for (var i = 0; i < input.files.length; i++) {
+          names.push(input.files[i].name);
+        }
+      }
+      filename.textContent = names.join(", ");
+      filename.hidden = names.length === 0;
+    });
+
+    wrapper.appendChild(button);
+    wrapper.appendChild(input);
+    wrapper.appendChild(filename);
+
+    return function () {
+      var names = [];
+      if (input.files) {
+        for (var i = 0; i < input.files.length; i++) {
+          names.push(input.files[i].name);
+        }
+      }
+      return {
+        value: names.join(", "),
+        cents: 0,
+        fileInput: input,
+        isFile: true,
+      };
+    };
+  };
+
   Renderer.prototype.renderHidden = function (field) {
     var settings = field.settings || {};
     var value = settings.hiddenValue || field.defaultValue || "";
@@ -605,6 +663,8 @@
       case "COLOR_SWATCHES":
       case "IMAGE_SWATCHES":
         return this.renderSwatches(field, wrapper);
+      case "FILE_UPLOAD":
+        return this.renderFileUpload(field, wrapper);
       case "RANGE_SLIDER":
         return this.renderRange(field, wrapper);
       case "DATE_RANGE":
@@ -735,6 +795,8 @@
         control: control,
         value: result.value || "",
         cents: result.cents || 0,
+        fileInput: result.fileInput || null,
+        isFile: Boolean(result.isFile),
       };
     });
   };
@@ -749,7 +811,10 @@
 
     var names = entries
       .filter(function (entry) {
-        return entry.value && entry.control.propertyName.charAt(0) !== "_";
+        return (
+          (entry.value || entry.isFile) &&
+          entry.control.propertyName.charAt(0) !== "_"
+        );
       })
       .map(function (entry) {
         return entry.control.propertyName;
@@ -763,6 +828,8 @@
     Array.prototype.slice
       .call(form.querySelectorAll("[data-product-options-property]"))
       .forEach(function (node) {
+        // Keep live file inputs in the widget; only strip cloned/hidden props.
+        if (node.getAttribute("data-product-options-file")) return;
         node.remove();
       });
 
@@ -784,6 +851,15 @@
         entry.control.selectedValue.textContent = entry.value || "";
         entry.control.selectedValue.hidden = !entry.value;
       }
+
+      // File fields must submit the real <input type="file"> so Shopify can
+      // store the upload. The widget already lives inside the product form.
+      if (entry.isFile && entry.fileInput) {
+        entry.fileInput.name = "properties[" + entry.control.propertyName + "]";
+        entry.fileInput.setAttribute("data-product-options-property", "");
+        return;
+      }
+
       if (!entry.value) return;
       addHiddenInput(entry.control.propertyName, entry.value);
     });
@@ -835,6 +911,18 @@
       ) {
         message =
           field.label + " must be at least " + field.minLength + " characters.";
+      } else if (entry.isFile && entry.fileInput && entry.fileInput.files) {
+        var maxMb = field.settings && field.settings.maxSizeMb;
+        if (maxMb != null) {
+          var maxBytes = Number(maxMb) * 1024 * 1024;
+          for (var i = 0; i < entry.fileInput.files.length; i++) {
+            if (entry.fileInput.files[i].size > maxBytes) {
+              message =
+                field.label + " must be " + maxMb + " MB or smaller.";
+              break;
+            }
+          }
+        }
       }
 
       error.textContent = message;
@@ -862,6 +950,8 @@
     var entries = this.collect();
     var properties = {};
     entries.forEach(function (entry) {
+      // File objects cannot go into JSON cart payloads — form / FormData only.
+      if (entry.isFile) return;
       if (entry.value) properties[entry.control.propertyName] = entry.value;
     });
 
@@ -869,6 +959,21 @@
     if (owned) properties[OWNED_NAMES_PROPERTY] = owned;
 
     return properties;
+  };
+
+  Controller.prototype.fileEntriesFor = function (variantId) {
+    var input = this.form.querySelector('[name="id"]');
+    var formVariantId = input ? String(input.value) : null;
+    if (variantId && formVariantId && variantId !== formVariantId) return [];
+
+    return this.collect().filter(function (entry) {
+      return (
+        entry.isFile &&
+        entry.fileInput &&
+        entry.fileInput.files &&
+        entry.fileInput.files.length
+      );
+    });
   };
 
   Controller.prototype.bind = function () {
@@ -944,6 +1049,15 @@
     return merged;
   }
 
+  function collectFileEntries(variantId) {
+    var files = [];
+    propertySources.forEach(function (source) {
+      if (!document.documentElement.contains(source.form)) return;
+      files = files.concat(source.controller.fileEntriesFor(variantId));
+    });
+    return files;
+  }
+
   function isCartAddUrl(url) {
     return typeof url === "string" && url.indexOf("/cart/add") !== -1;
   }
@@ -955,6 +1069,18 @@
       var key = "properties[" + name + "]";
       if (!body.has(key)) body.set(key, properties[name]);
     });
+
+    // Attach real File objects for file-upload fields (FormData only).
+    if (typeof FormData !== "undefined" && body instanceof FormData) {
+      collectFileEntries(variantId ? String(variantId) : null).forEach(function (entry) {
+        var key = "properties[" + entry.control.propertyName + "]";
+        if (body.has(key)) return;
+        var list = entry.fileInput.files;
+        for (var i = 0; i < list.length; i++) {
+          body.append(key, list[i], list[i].name);
+        }
+      });
+    }
     return body;
   }
 

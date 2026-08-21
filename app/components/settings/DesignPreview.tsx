@@ -59,7 +59,6 @@ function Choice({
         className="product-options__choice-input"
         type={type}
         defaultChecked={checked}
-        readOnly
       />
       <span className="product-options__choice-label">{label}</span>
     </label>
@@ -88,7 +87,6 @@ function Swatches({
             type="radio"
             name={name}
             defaultChecked={index === 0}
-            readOnly
           />
           <span className="product-options__swatch-visual" style={{ background: color }} />
         </label>
@@ -136,7 +134,7 @@ export function DesignPreview({ settings }: Props) {
             data-mode={dark ? "dark" : "light"}
           >
             <Field title="Text box" selected="Sample">
-              <input className="product-options__input" placeholder="Type here" readOnly />
+              <input className="product-options__input" placeholder="Type here" defaultValue="Sample" />
               <p className="product-options__help">Help text</p>
             </Field>
 
@@ -159,8 +157,10 @@ export function DesignPreview({ settings }: Props) {
             </Field>
 
             <Field title="Dropdown" tooltip="i">
-              <select className="product-options__input product-options__select" disabled>
-                <option>{translations.pleaseSelect}</option>
+              <select className="product-options__input product-options__select" defaultValue="">
+                <option value="">{translations.pleaseSelect}</option>
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
               </select>
             </Field>
 
@@ -191,7 +191,6 @@ export function DesignPreview({ settings }: Props) {
                   className="product-options__switch-input"
                   type="checkbox"
                   defaultChecked
-                  readOnly
                 />
                 <span className="product-options__switch-track" />
                 <span className="product-options__choice-label">{translations.yes}</span>
@@ -202,15 +201,15 @@ export function DesignPreview({ settings }: Props) {
               <input
                 className="product-options__input product-options__quantity"
                 defaultValue="1"
-                readOnly
               />
               <p className="product-options__error">{translations.errorRequired}</p>
             </Field>
 
             <Field title="File upload">
-              <button type="button" className="product-options__button product-options__upload">
+              <label className="product-options__button product-options__upload">
                 {translations.uploadFile}
-              </button>
+                <input className="product-options__file-input" type="file" />
+              </label>
               <span className="product-options__filename">sample.png</span>
             </Field>
 

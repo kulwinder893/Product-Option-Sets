@@ -11,6 +11,9 @@ function ColorRow({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const handle = (event: Event) =>
+    onChange((event.currentTarget as HTMLInputElement).value);
+
   return (
     <s-grid gridTemplateColumns="1.4fr auto 120px" gap="small-200" alignItems="center">
       <s-text>{label}</s-text>
@@ -18,17 +21,15 @@ function ColorRow({
         label={label}
         labelAccessibilityVisibility="exclusive"
         value={value}
-        onInput={(event: Event) =>
-          onChange((event.currentTarget as HTMLInputElement).value)
-        }
+        onInput={handle}
+        onChange={handle}
       />
       <s-text-field
         label="Hex"
         labelAccessibilityVisibility="exclusive"
         value={value}
-        onInput={(event: Event) =>
-          onChange((event.currentTarget as HTMLInputElement).value)
-        }
+        onInput={handle}
+        onChange={handle}
       />
     </s-grid>
   );

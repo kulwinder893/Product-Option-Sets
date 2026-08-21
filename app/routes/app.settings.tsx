@@ -97,7 +97,8 @@ export default function SettingsPage() {
   const { settings: initial } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<ActionData>();
   const [settings, setSettings] = useState(initial);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const savedSnapshot = useRef(JSON.stringify(initial));
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get("section");
   const tabParam = searchParams.get("tab");
@@ -106,23 +107,29 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setSettings(initial);
+    savedSnapshot.current = JSON.stringify(initial);
+    setDirty(false);
   }, [initial]);
 
   useEffect(() => {
-    if (fetcher.data?.settings && fetcher.data.message?.includes("reset")) {
+    if (!fetcher.data || fetcher.state !== "idle") return;
+    if (fetcher.data.ok && fetcher.data.settings) {
       setSettings(fetcher.data.settings);
+      savedSnapshot.current = JSON.stringify(fetcher.data.settings);
+      setDirty(false);
     }
-  }, [fetcher.data]);
+  }, [fetcher.data, fetcher.state]);
 
-  const persist = (next: AppSettingsState) => {
+  const updateSettings = (next: AppSettingsState) => {
     setSettings(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      const form = new FormData();
-      form.set("intent", "save-settings");
-      form.set("payload", JSON.stringify(next));
-      fetcher.submit(form, { method: "post" });
-    }, 280);
+    setDirty(JSON.stringify(next) !== savedSnapshot.current);
+  };
+
+  const save = () => {
+    const form = new FormData();
+    form.set("intent", "save-settings");
+    form.set("payload", JSON.stringify(settings));
+    fetcher.submit(form, { method: "post" });
   };
 
   const setSection = (next: SettingsSectionId) => {
@@ -140,20 +147,30 @@ export default function SettingsPage() {
     setSearchParams(params, { replace: true });
   };
 
-  const editorProps = { settings, onChange: persist };
+  const editorProps = { settings, onChange: updateSettings };
   const DesignEditor = DESIGN_EDITORS[tab];
-  const saveLabel =
-    fetcher.state !== "idle"
-      ? "Saving…"
+  const saving = fetcher.state !== "idle";
+  const saveLabel = saving
+    ? "Saving…"
+    : dirty
+      ? "Unsaved changes"
       : fetcher.data?.ok
-        ? fetcher.data.message
+        ? "Settings saved"
         : fetcher.data && !fetcher.data.ok
           ? fetcher.data.message
-          : "Changes save automatically";
-  const saving = fetcher.state !== "idle";
+          : "All changes saved";
 
   return (
     <s-page heading="Settings">
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        onClick={save}
+        {...(saving ? { loading: true } : {})}
+        {...(!dirty || saving ? { disabled: true } : {})}
+      >
+        Save settings
+      </s-button>
       <div className="osp-settings">
         <s-stack direction="block" gap="large">
           <div className="osp-settings__hero">
@@ -165,7 +182,9 @@ export default function SettingsPage() {
                 stark black-and-white widget.
               </p>
             </div>
-            <span className={`osp-status${saving ? " osp-status--saving" : ""}`}>
+            <span
+              className={`osp-status${saving ? " osp-status--saving" : ""}${dirty ? " osp-status--dirty" : ""}`}
+            >
               {saveLabel}
             </span>
           </div>
@@ -217,6 +236,22 @@ export default function SettingsPage() {
             <AdvancedSettingsEditor {...editorProps} />
           ) : null}
           {section === "api" ? <ApiSettingsEditor /> : null}
+
+          {section !== "api" ? (
+            <div className="osp-save-bar">
+              <span className={dirty ? "osp-status osp-status--dirty" : "osp-status"}>
+                {saveLabel}
+              </span>
+              <button
+                type="button"
+                className="osp-save-bar__button"
+                onClick={save}
+                disabled={!dirty || saving}
+              >
+                {saving ? "Saving…" : "Save settings"}
+              </button>
+            </div>
+          ) : null}
         </s-stack>
       </div>
     </s-page>

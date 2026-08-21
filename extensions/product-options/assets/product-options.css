@@ -11,18 +11,15 @@
 */
 
 .product-options {
-  --po-field-gap: 22px;
-  --po-label-gap: 10px;
-  --po-choice-gap: 12px;
-  --po-swatch-gap: 10px;
-  --po-choice-direction: row;
+  /* Defaults live in var() fallbacks so App Design tokens (inline / injected
+     CSS) always win on the live storefront. */
   --product-options-accent: var(--po-input-border-focus, #3d9b8f);
   --product-options-border: var(--po-input-border, #d9e2ec);
   --product-options-radius: var(--po-input-radius, 12px);
 
   box-sizing: border-box;
   display: grid;
-  gap: var(--po-field-gap);
+  gap: var(--po-field-gap, 22px);
   margin: 16px 0;
   padding: var(--po-widget-padding, 0px);
   font-size: 0.95rem;
@@ -44,7 +41,7 @@
 .product-options__field {
   display: grid;
   align-content: start;
-  gap: var(--po-label-gap);
+  gap: var(--po-label-gap, 10px);
 }
 
 .product-options__label {
@@ -149,10 +146,10 @@
 
 .product-options__choices {
   display: flex;
-  flex-direction: var(--po-choice-direction);
+  flex-direction: var(--po-choice-direction, row);
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--po-choice-gap);
+  gap: var(--po-choice-gap, 12px);
 }
 
 .product-options__choice {
@@ -182,7 +179,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--po-choice-gap);
+  gap: var(--po-choice-gap, 12px);
 }
 
 .product-options__button {
@@ -219,7 +216,7 @@
 .product-options__swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--po-swatch-gap);
+  gap: var(--po-swatch-gap, 10px);
 }
 
 .product-options__swatch {

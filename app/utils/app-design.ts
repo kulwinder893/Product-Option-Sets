@@ -317,6 +317,10 @@ export function toStorefrontDesign(
     googleFontsUrl: googleFontsUrl(settings.design.fonts),
     fonts: settings.design.fonts,
     style: settings.design.style,
+    colors: settings.design.colors,
+    sizes: settings.design.sizes,
+    shapes: settings.design.shapes,
+    spacing: settings.design.spacing,
     translations: settings.translations,
     advanced: settings.advanced,
   };

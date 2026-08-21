@@ -151,7 +151,8 @@
       var style = document.createElement("style");
       style.setAttribute("data-product-options-design", "");
       style.textContent = design.css;
-      document.head.appendChild(style);
+      // Append last so merchant tokens beat the extension stylesheet defaults.
+      (document.body || document.head).appendChild(style);
     }
 
     if (design.translations) context.translations = design.translations;
@@ -175,6 +176,105 @@
           label.textContent = advanced.addToCartText;
         }
       }
+    }
+  }
+
+  /**
+   * Apply App Design tokens as inline CSS variables on the widget root.
+   * Inline styles always beat the theme-extension stylesheet, so Spacing /
+   * Color / Size settings from admin actually show on the live product page.
+   */
+  function applyDesignTokens(root, design) {
+    if (!root || !design) return;
+
+    var spacing = design.spacing || {};
+    var sizes = design.sizes || {};
+    var shapes = design.shapes || {};
+    var colors = design.colors || {};
+    var style = design.style || {};
+
+    function px(value, fallback) {
+      var n = Number(value);
+      return (isFinite(n) ? n : fallback) + "px";
+    }
+
+    function set(name, value) {
+      if (value == null || value === "") return;
+      root.style.setProperty(name, value);
+    }
+
+    set("--po-field-gap", px(spacing.fieldGap, 22));
+    set("--po-choice-gap", px(spacing.choiceGap, 12));
+    set("--po-swatch-gap", px(spacing.swatchGap, 10));
+    set("--po-label-gap", px(spacing.labelGap, 10));
+    set("--po-widget-padding", px(spacing.widgetPadding, 0));
+
+    set("--po-input-height", px(sizes.inputHeight, 44));
+    set("--po-dropdown-height", px(sizes.dropdownHeight, 44));
+    set("--po-quantity-height", px(sizes.quantityHeight, 44));
+    set("--po-swatch-size", px(sizes.swatchSize, 38));
+    set("--po-button-min-height", px(sizes.buttonMinHeight, 40));
+    set("--po-checkbox-size", px(sizes.checkboxSize, 18));
+    set("--po-upload-height", px(sizes.uploadButtonHeight, 42));
+
+    set("--po-input-radius", px(shapes.inputRadius, 12));
+    set("--po-button-radius", px(shapes.buttonRadius, 12));
+    set("--po-total-radius", px(shapes.totalRadius, 14));
+
+    var swatchShape = shapes.swatchShape || "circle";
+    var swatchRadius =
+      swatchShape === "circle"
+        ? "50%"
+        : swatchShape === "rounded"
+          ? px(shapes.swatchRadius, 10)
+          : "0px";
+    set("--po-swatch-radius", swatchRadius);
+    set(
+      "--po-choice-direction",
+      style.choiceLayout === "vertical" ? "column" : "row"
+    );
+
+    if (colors.optionLabel) set("--po-color-label", colors.optionLabel);
+    if (colors.optionValue) set("--po-color-value", colors.optionValue);
+    if (colors.selectedValue) set("--po-color-selected", colors.selectedValue);
+    if (colors.helpText) set("--po-color-help", colors.helpText);
+    if (colors.tooltip) set("--po-color-tooltip", colors.tooltip);
+    if (colors.errorMessage) set("--po-color-error", colors.errorMessage);
+    if (colors.totalBackground) set("--po-total-bg", colors.totalBackground);
+    if (colors.totalText) set("--po-total-text", colors.totalText);
+    if (colors.totalPrice) set("--po-total-price", colors.totalPrice);
+    if (colors.totalBorder) set("--po-total-border", colors.totalBorder);
+    if (colors.inputPlaceholder) set("--po-input-placeholder", colors.inputPlaceholder);
+    if (colors.inputValue) set("--po-input-text", colors.inputValue);
+    if (colors.inputBorder) set("--po-input-border", colors.inputBorder);
+    if (colors.inputBorderFocus) set("--po-input-border-focus", colors.inputBorderFocus);
+    if (colors.inputBackground) set("--po-input-bg", colors.inputBackground);
+    if (colors.inputBackgroundFocus) set("--po-input-bg-focus", colors.inputBackgroundFocus);
+    if (colors.colorSwatchBorder) set("--po-color-swatch-border", colors.colorSwatchBorder);
+    if (colors.colorSwatchBorderSelected) {
+      set("--po-color-swatch-border-selected", colors.colorSwatchBorderSelected);
+    }
+    if (colors.imageSwatchBorder) set("--po-image-swatch-border", colors.imageSwatchBorder);
+    if (colors.imageSwatchBorderSelected) {
+      set("--po-image-swatch-border-selected", colors.imageSwatchBorderSelected);
+    }
+    if (colors.buttonBackground) set("--po-button-bg", colors.buttonBackground);
+    if (colors.buttonText) set("--po-button-text", colors.buttonText);
+    if (colors.buttonBorder) set("--po-button-border", colors.buttonBorder);
+    if (colors.buttonBackgroundSelected) {
+      set("--po-button-bg-selected", colors.buttonBackgroundSelected);
+    }
+    if (colors.buttonTextSelected) {
+      set("--po-button-text-selected", colors.buttonTextSelected);
+    }
+    if (colors.switchOn) set("--po-switch-on", colors.switchOn);
+
+    if (colors.inputBorderFocus) {
+      set("--product-options-accent", colors.inputBorderFocus);
+    }
+    if (colors.inputBorder) set("--product-options-border", colors.inputBorder);
+    if (shapes.inputRadius != null) {
+      set("--product-options-radius", px(shapes.inputRadius, 12));
     }
   }
 
@@ -1492,6 +1592,10 @@
         var renderer = new Renderer(context);
         var root = renderer.render(optionSets);
         if (!renderer.controls.length && !root.children.length) return;
+
+        // Inline tokens on the root so Spacing/Color/Size from Settings win
+        // over product-options.css defaults on the live storefront.
+        applyDesignTokens(root, payload.design);
 
         if (!mount(root, form, (context.settings || {}).placement)) return;
 

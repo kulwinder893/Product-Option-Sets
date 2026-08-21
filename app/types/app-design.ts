@@ -135,6 +135,10 @@ export type StorefrontDesignPayload = {
   googleFontsUrl: string | null;
   fonts: FontSettings;
   style: StyleSettings;
+  colors: ColorSettings;
+  sizes: SizeSettings;
+  shapes: ShapeSettings;
+  spacing: SpacingSettings;
   translations: TranslationSettings;
   advanced: AdvancedSettings;
 };

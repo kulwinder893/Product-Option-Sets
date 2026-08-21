@@ -21,6 +21,12 @@ const PRODUCT_CARD_CSS = `
 .product-options__product-card-price{font-size:.9rem;font-weight:700}
 .product-options__product-card-price.is-muted{color:#6b7280;font-size:.75rem;font-weight:500}
 .product-options__product-card-qty{width:100%;min-height:34px!important;padding:4px 8px;font-size:.85rem}
+/* Older theme JS renders product picker as checkboxes — make those look like rows */
+.product-options__field:has([data-product-options-field]) .product-options__choices,
+.product-options__choices{display:grid;gap:10px}
+.product-options__choice{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--product-options-border,#d9e2ec);border-radius:10px;background:#fff;cursor:pointer}
+.product-options__choice:has(:checked){border-color:var(--product-options-accent,#1a1a1a);box-shadow:0 0 0 1px var(--product-options-accent,#1a1a1a)}
+.product-options__choice-label{font-weight:600;line-height:1.3}
 `.trim();
 
 function jsonResponse(body: unknown, status = 200) {

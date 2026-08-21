@@ -71,7 +71,9 @@ function toStorefrontField(
   }));
 
   // Product picker stores add-ons in settings.products (not FieldChoice rows).
-  // Keep type PRODUCT_PICKER so the storefront can render image + price cards.
+  // Emit CHECKBOX so older theme scripts (which don't know PRODUCT_PICKER) show
+  // selectable add-ons instead of a text box. Newer scripts detect
+  // settings.productPicker and render image + price product cards.
   if (field.type === "PRODUCT_PICKER") {
     const products = Array.isArray(settings.products) ? settings.products : [];
     const choices =
@@ -95,7 +97,7 @@ function toStorefrontField(
     return {
       id: field.id,
       parentId: field.parentId,
-      type: "PRODUCT_PICKER",
+      type: "CHECKBOX",
       label: field.label,
       description: field.description,
       placeholder: field.placeholder,

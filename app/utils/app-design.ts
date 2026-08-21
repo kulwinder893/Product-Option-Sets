@@ -347,14 +347,32 @@ export function designToCss(design: AppDesignSettings, scope?: string): string {
   const custom = design.customCss?.trim()
     ? `\n/* Merchant Custom CSS */\n${design.customCss.trim()}`
     : "";
+  // Always ship add-on chrome so Product picker checkboxes/cards look right
+  // even when the theme-extension stylesheet is still an older build.
+  const addons = scope ? "" : `\n${STOREFRONT_ADDON_CSS}`;
   return `${root} {
 ${cssVariables(design)}
   gap: var(--po-field-gap);
   padding: var(--po-widget-padding);
 }
 ${layout}
-${fonts}${hideSelected}${custom}`;
+${fonts}${hideSelected}${addons}${custom}`;
 }
+
+/** Base Product picker / choice chrome for the live storefront. */
+const STOREFRONT_ADDON_CSS = `
+.product-options__choices{display:grid!important;gap:10px!important;flex-direction:column!important}
+.product-options__choice{display:flex!important;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--product-options-border,#d9e2ec);border-radius:10px;background:#fff;cursor:pointer}
+.product-options__choice:has(:checked){border-color:var(--product-options-accent,#1a1a1a);box-shadow:0 0 0 1px var(--product-options-accent,#1a1a1a)}
+.product-options__choice-label{font-weight:600;line-height:1.3}
+.product-options__addon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.product-options__product-card{position:relative;display:flex;flex-direction:column;gap:8px;margin:0;padding:10px;border:1px solid var(--product-options-border,#d9e2ec);border-radius:12px;background:#fff;cursor:pointer}
+.product-options__product-card.is-selected,.product-options__product-card:has(.product-options__product-card-check:checked){border-color:var(--product-options-accent,#1a1a1a);box-shadow:0 0 0 1px var(--product-options-accent,#1a1a1a)}
+.product-options__product-card-check{position:absolute;top:12px;right:12px;z-index:2;width:18px;height:18px;margin:0}
+.product-options__product-card-media{display:block;width:100%;aspect-ratio:1;border-radius:8px;background:#f4f4f5;background-size:cover;background-position:center}
+.product-options__product-card-title{font-size:.85rem;font-weight:600;line-height:1.3}
+.product-options__product-card-price{font-size:.9rem;font-weight:700}
+`.trim();
 
 export function toStorefrontDesign(
   settings: AppSettingsState,

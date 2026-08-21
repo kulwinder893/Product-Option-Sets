@@ -538,14 +538,24 @@
 
   Renderer.prototype.renderChoiceList = function (field, wrapper) {
     var self = this;
-    var multiple = field.type === "CHECKBOX" && field.settings.allowMultiple !== false;
+    var settings = field.settings || {};
+    // Product picker payloads arrive as CHECKBOX for older scripts; newer builds
+    // prefer the dedicated card renderer when products are present.
+    if (
+      settings.productPicker ||
+      (Array.isArray(settings.products) && settings.products.length)
+    ) {
+      return this.renderProductPicker(field, wrapper);
+    }
+
+    var multiple = field.type === "CHECKBOX" && settings.allowMultiple !== false;
     var inputType = multiple || field.type === "CHECKBOX" ? "checkbox" : "radio";
     var groupName = ROOT_CLASS + "-" + field.id;
 
     var list = el("div", ROOT_CLASS + "__choices");
-    if (field.settings.columns > 1) {
+    if (settings.columns > 1) {
       list.style.gridTemplateColumns =
-        "repeat(" + field.settings.columns + ", minmax(0, 1fr))";
+        "repeat(" + settings.columns + ", minmax(0, 1fr))";
     }
 
     var inputs = [];
@@ -574,6 +584,18 @@
       var selected = inputs.filter(function (entry) {
         return entry.input.checked;
       });
+      var addonItems = [];
+      if (settings.productPicker) {
+        selected.forEach(function (entry) {
+          var variantId = entry.choice.value;
+          if (variantId && String(variantId).indexOf("gid://") !== 0) {
+            addonItems.push({
+              id: Number(variantId) || variantId,
+              quantity: 1,
+            });
+          }
+        });
+      }
       return {
         value: selected
           .map(function (entry) {
@@ -583,6 +605,7 @@
         cents: selected.reduce(function (sum, entry) {
           return sum + toCents(entry.choice.priceAddon);
         }, 0),
+        addonItems: addonItems,
       };
     };
   };

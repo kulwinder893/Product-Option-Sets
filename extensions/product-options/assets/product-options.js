@@ -586,11 +586,24 @@
       });
       var addonItems = [];
       if (settings.productPicker) {
+        var productByChoice = {};
+        if (Array.isArray(settings.products)) {
+          settings.products.forEach(function (product) {
+            productByChoice[product.productGid] = product;
+            productByChoice[product.productId] = product;
+            if (product.variantId) productByChoice[product.variantId] = product;
+          });
+        }
         selected.forEach(function (entry) {
-          var variantId = entry.choice.value;
-          if (variantId && String(variantId).indexOf("gid://") !== 0) {
+          var linked =
+            productByChoice[entry.choice.id] ||
+            productByChoice[entry.choice.value];
+          var variantId = normalizeVariantId(
+            (linked && (linked.variantId || linked.variantGid)) || entry.choice.value
+          );
+          if (variantId) {
             addonItems.push({
-              id: Number(variantId) || variantId,
+              id: variantId,
               quantity: 1,
             });
           }
@@ -922,10 +935,12 @@
           cents += Math.round(unit * 100) * qtyVal;
         }
         labels.push(row.product.title + (qtyVal > 1 ? " ×" + qtyVal : ""));
-        var variantId = row.product.variantId || row.product.productId;
-        if (variantId && String(variantId).indexOf("gid://") !== 0) {
+        var variantId = normalizeVariantId(
+          row.product.variantId || row.product.variantGid
+        );
+        if (variantId) {
           addons.push({
-            id: Number(variantId) || variantId,
+            id: variantId,
             quantity: qtyVal,
           });
         }
@@ -1123,6 +1138,7 @@
       .filter(function (entry) {
         return (
           (entry.value || entry.isFile) &&
+          !entryUsesAddonLines(entry) &&
           entry.control.propertyName.charAt(0) !== "_"
         );
       })
@@ -1169,6 +1185,10 @@
         entry.fileInput.setAttribute("data-product-options-property", "");
         return;
       }
+
+      // Add-on products become separate cart line items — don't duplicate as
+      // a title-only property on the main product.
+      if (entryUsesAddonLines(entry)) return;
 
       if (!entry.value) return;
       addHiddenInput(entry.control.propertyName, entry.value);
@@ -1260,8 +1280,8 @@
     var entries = this.collect();
     var properties = {};
     entries.forEach(function (entry) {
-      // File objects cannot go into JSON cart payloads — form / FormData only.
       if (entry.isFile) return;
+      if (entryUsesAddonLines(entry)) return;
       if (entry.value) properties[entry.control.propertyName] = entry.value;
     });
 
@@ -1311,15 +1331,53 @@
       self.syncProperties();
     });
 
+    function handleAddToCart(event) {
+      self.syncProperties();
+      if (!self.validate()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+
+      var variantInput = self.form.querySelector('[name="id"]');
+      var variantId = variantInput ? String(variantInput.value) : null;
+      if (!variantId || !buildCartItemsPayload(self.form, variantId)) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (addonCartSubmitting) return;
+
+      var trigger = event.target.closest
+        ? event.target.closest('[name="add"], button[type="submit"]')
+        : null;
+      if (trigger && trigger.disabled !== undefined) trigger.disabled = true;
+      addonCartSubmitting = true;
+
+      submitCartWithAddons(self.form, variantId)
+        .then(function (added) {
+          if (!added) {
+            self.form.requestSubmit
+              ? self.form.requestSubmit()
+              : self.form.submit();
+          }
+        })
+        .catch(function (error) {
+          console.warn("[product-options] Add-on cart add failed.", error);
+          self.form.requestSubmit
+            ? self.form.requestSubmit()
+            : self.form.submit();
+        })
+        .finally(function () {
+          addonCartSubmitting = false;
+          if (trigger && trigger.disabled !== undefined) trigger.disabled = false;
+        });
+    }
+
     // Capture phase so validation runs before the theme's own AJAX handler.
     this.form.addEventListener(
       "submit",
       function (event) {
-        self.syncProperties();
-        if (!self.validate()) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
+        handleAddToCart(event);
       },
       true
     );
@@ -1332,12 +1390,7 @@
           ? event.target.closest('[name="add"], button[type="submit"]')
           : null;
         if (!trigger) return;
-
-        self.syncProperties();
-        if (!self.validate()) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
+        handleAddToCart(event);
       },
       true
     );
@@ -1353,6 +1406,7 @@
 
   var propertySources = [];
   var requestsPatched = false;
+  var addonCartSubmitting = false;
 
   function registerPropertySource(controller) {
     propertySources = propertySources.filter(function (source) {
@@ -1396,6 +1450,118 @@
     return typeof url === "string" && url.indexOf("/cart/add") !== -1;
   }
 
+  /** Numeric Shopify variant id required for /cart/add.js line items. */
+  function normalizeVariantId(raw) {
+    if (raw == null || raw === "") return null;
+    var id = String(raw);
+    if (id.indexOf("gid://") === 0) id = id.split("/").pop() || "";
+    if (/^\d+$/.test(id)) return Number(id);
+    return null;
+  }
+
+  function entryUsesAddonLines(entry) {
+    return Boolean(entry.addonItems && entry.addonItems.length);
+  }
+
+  function buildMainCartItem(form, variantId) {
+    var properties = collectProperties(variantId);
+    var qtyInput = form.querySelector('[name="quantity"]');
+    var quantity = qtyInput ? Number(qtyInput.value) : 1;
+    if (!isFinite(quantity) || quantity < 1) quantity = 1;
+
+    var item = { id: normalizeVariantId(variantId), quantity: quantity };
+    if (!item.id) return null;
+
+    var sellingPlan = form.querySelector('[name="selling_plan"]');
+    if (sellingPlan && sellingPlan.value) item.selling_plan = sellingPlan.value;
+
+    if (Object.keys(properties).length) item.properties = properties;
+    return item;
+  }
+
+  function buildCartItemsPayload(form, variantId) {
+    var addons = collectAddonItems(variantId);
+    if (!addons.length) return null;
+
+    var main = buildMainCartItem(form, variantId);
+    if (!main) return null;
+
+    var validAddons = addons.filter(function (item) {
+      return normalizeVariantId(item.id) != null;
+    });
+    if (!validAddons.length) return null;
+
+    validAddons.forEach(function (item) {
+      item.id = normalizeVariantId(item.id);
+      if (!item.quantity || item.quantity < 1) item.quantity = 1;
+    });
+
+    return { items: [main].concat(validAddons) };
+  }
+
+  function cartAddJsonUrl() {
+    var root =
+      (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || "/";
+    if (root.charAt(root.length - 1) !== "/") root += "/";
+    return root + "cart/add.js";
+  }
+
+  function notifyCartUpdated(cart) {
+    var detail = { cart: cart, source: "product-options" };
+    document.documentElement.dispatchEvent(
+      new CustomEvent("cart:refresh", { bubbles: true, detail: detail })
+    );
+    document.documentElement.dispatchEvent(
+      new CustomEvent("cart:update", { bubbles: true, detail: detail })
+    );
+    if (typeof window.publish === "function") {
+      try {
+        window.publish("cart-update", detail);
+      } catch (error) {
+        /* theme pub/sub not available */
+      }
+    }
+
+    var drawer = document.querySelector("cart-drawer");
+    if (drawer) {
+      if (typeof drawer.renderContents === "function") {
+        drawer.renderContents(cart);
+      }
+      if (typeof drawer.open === "function") {
+        drawer.open();
+      }
+    }
+  }
+
+  function submitCartWithAddons(form, variantId) {
+    var payload = buildCartItemsPayload(form, variantId);
+    if (!payload) return Promise.resolve(false);
+
+    debug("adding main product + add-ons", payload.items.length);
+
+    return fetch(cartAddJsonUrl(), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(payload),
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          return response.json().then(function (body) {
+            throw new Error((body && body.description) || "Could not add to cart");
+          });
+        }
+        return response.json();
+      })
+      .then(function (cart) {
+        notifyCartUpdated(cart);
+        return true;
+      });
+  }
+
   function injectIntoEntries(body) {
     var variantId = body.get("id");
     var properties = collectProperties(variantId ? String(variantId) : null);
@@ -1432,13 +1598,16 @@
       if (!item || typeof item !== "object") return;
       var properties = collectProperties(item.id != null ? String(item.id) : null);
       if (!Object.keys(properties).length) return;
-      // Theme-supplied properties win so we never overwrite their data.
       item.properties = Object.assign({}, properties, item.properties || {});
     });
 
     var addons = collectAddonItems(variantKey);
     if (addons.length) {
-      return { items: items.concat(addons) };
+      addons.forEach(function (item) {
+        item.id = normalizeVariantId(item.id);
+        if (!item.quantity || item.quantity < 1) item.quantity = 1;
+      });
+      return { items: items.concat(addons.filter(function (item) { return item.id; })) };
     }
 
     if (Array.isArray(payload.items)) {
@@ -1448,11 +1617,47 @@
     return items[0];
   }
 
+  function formDataToCartItems(body) {
+    var variantId = body.get("id");
+    var key = variantId != null ? String(variantId) : null;
+    var addons = collectAddonItems(key);
+    if (!addons.length) return null;
+
+    var properties = collectProperties(key);
+    var quantity = Number(body.get("quantity"));
+    if (!isFinite(quantity) || quantity < 1) quantity = 1;
+
+    var main = { id: normalizeVariantId(variantId), quantity: quantity };
+    if (!main.id) return null;
+    if (Object.keys(properties).length) main.properties = properties;
+
+    var sellingPlan = body.get("selling_plan");
+    if (sellingPlan) main.selling_plan = sellingPlan;
+
+    addons.forEach(function (item) {
+      item.id = normalizeVariantId(item.id);
+      if (!item.quantity || item.quantity < 1) item.quantity = 1;
+    });
+
+    return [main].concat(addons.filter(function (item) { return item.id; }));
+  }
+
   function transformBody(body) {
     if (typeof FormData !== "undefined" && body instanceof FormData) {
+      var items = formDataToCartItems(body);
+      if (items) return JSON.stringify({ items: items });
       return injectIntoEntries(body);
     }
     if (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) {
+      var variantId = body.get("id");
+      var addons = collectAddonItems(variantId ? String(variantId) : null);
+      if (addons.length) {
+        var fd = new FormData();
+        body.forEach(function (value, key) {
+          fd.append(key, value);
+        });
+        return JSON.stringify({ items: formDataToCartItems(fd) });
+      }
       return injectIntoEntries(body);
     }
     if (typeof body === "string") {
@@ -1460,9 +1665,30 @@
       if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[") {
         return JSON.stringify(injectIntoPayload(JSON.parse(body)));
       }
-      return injectIntoEntries(new URLSearchParams(body)).toString();
+      var params = new URLSearchParams(body);
+      var paramsVariant = params.get("id");
+      if (collectAddonItems(paramsVariant ? String(paramsVariant) : null).length) {
+        var pseudo = new FormData();
+        params.forEach(function (value, key) {
+          pseudo.append(key, value);
+        });
+        return JSON.stringify({ items: formDataToCartItems(pseudo) });
+      }
+      return injectIntoEntries(params).toString();
     }
     return body;
+  }
+
+  function patchFetchBody(init, transformed) {
+    if (typeof transformed !== "string" || transformed.charAt(0) !== "{") return;
+    init.headers = init.headers || {};
+    if (init.headers instanceof Headers) {
+      init.headers.set("Content-Type", "application/json");
+      init.headers.set("Accept", "application/json");
+    } else {
+      init.headers["Content-Type"] = "application/json";
+      init.headers["Accept"] = "application/json";
+    }
   }
 
   function patchCartRequests() {
@@ -1477,7 +1703,9 @@
 
         if (init && init.body != null) {
           try {
-            init.body = transformBody(init.body);
+            var transformed = transformBody(init.body);
+            patchFetchBody(init, transformed);
+            init.body = transformed;
           } catch (error) {
             console.warn("[product-options] Could not patch cart request.", error);
           }
@@ -1495,9 +1723,15 @@
             .clone()
             .text()
             .then(function (text) {
+              var transformed = transformBody(text);
+              var headers = new Headers(input.headers);
+              if (typeof transformed === "string" && transformed.charAt(0) === "{") {
+                headers.set("Content-Type", "application/json");
+                headers.set("Accept", "application/json");
+              }
               return nativeFetch.call(
                 self,
-                new Request(input, { body: transformBody(text) })
+                new Request(input, { body: transformed, headers: headers })
               );
             })
             .catch(function () {

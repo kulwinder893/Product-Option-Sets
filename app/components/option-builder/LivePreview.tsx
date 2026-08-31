@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { FieldDraft } from "../../types/field";
 import { childrenOf } from "../../utils/draft";
 
@@ -9,6 +10,68 @@ function PriceHint({ amount }: { amount?: number | null }) {
   if (amount == null || amount === 0) return null;
   const sign = amount > 0 ? "+" : "−";
   return <s-text color="subdued">{` (${sign}${Math.abs(amount)})`}</s-text>;
+}
+
+function PreviewFileUpload({
+  field,
+  label,
+  description,
+}: {
+  field: FieldDraft;
+  label: React.ReactNode;
+  description: React.ReactNode;
+}) {
+  const inputId = `osp-file-preview-${field.id}`;
+  const [filename, setFilename] = useState("");
+  const extensions = field.settings.allowedExtensions ?? [];
+  const accept = extensions.length
+    ? extensions.map((ext) => `.${ext.replace(/^\./, "")}`).join(",")
+    : undefined;
+  const multiple =
+    field.settings.maxFiles != null && Number(field.settings.maxFiles) > 1;
+
+  return (
+    <s-stack direction="block" gap="small-500">
+      {label}
+      {description}
+      <label
+        htmlFor={inputId}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 42,
+          padding: "10px 16px",
+          border: "1px dashed var(--p-color-border, #c9cccf)",
+          borderRadius: 8,
+          cursor: "pointer",
+          background: "var(--p-color-bg-surface-secondary, #f6f6f7)",
+        }}
+      >
+        <s-text>Upload file</s-text>
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        hidden
+        accept={accept}
+        multiple={multiple}
+        onChange={(event) => {
+          const files = event.currentTarget.files;
+          if (!files?.length) {
+            setFilename("");
+            return;
+          }
+          setFilename(
+            Array.from(files)
+              .map((file) => file.name)
+              .join(", "),
+          );
+        }}
+      />
+      {filename ? <s-text color="subdued">{filename}</s-text> : null}
+    </s-stack>
+  );
 }
 
 function FieldPreview({ field, all }: { field: FieldDraft; all: FieldDraft[] }) {
@@ -187,10 +250,7 @@ function FieldPreview({ field, all }: { field: FieldDraft; all: FieldDraft[] }) 
 
     case "FILE_UPLOAD":
       return (
-        <s-stack direction="block" gap="small-500">
-          {label}
-          <s-drop-zone label={field.label} labelAccessibilityVisibility="exclusive" />
-        </s-stack>
+        <PreviewFileUpload field={field} label={label} description={description} />
       );
 
     case "PRODUCT_PICKER": {

@@ -766,22 +766,51 @@
         .join(",");
     }
 
+    var preview = el("div", ROOT_CLASS + "__file-preview");
+    preview.hidden = true;
     var filename = el("span", ROOT_CLASS + "__filename");
     filename.hidden = true;
 
+    var objectUrls = [];
+
+    function clearPreview() {
+      objectUrls.forEach(function (url) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          /* ignore */
+        }
+      });
+      objectUrls = [];
+      preview.innerHTML = "";
+      preview.hidden = true;
+    }
+
     input.addEventListener("change", function () {
+      clearPreview();
       var names = [];
       if (input.files) {
         for (var i = 0; i < input.files.length; i++) {
-          names.push(input.files[i].name);
+          var file = input.files[i];
+          names.push(file.name);
+          if (file.type && file.type.indexOf("image/") === 0) {
+            var url = URL.createObjectURL(file);
+            objectUrls.push(url);
+            var thumb = el("img", ROOT_CLASS + "__file-thumb");
+            thumb.src = url;
+            thumb.alt = file.name;
+            preview.appendChild(thumb);
+          }
         }
       }
       filename.textContent = names.join(", ");
       filename.hidden = names.length === 0;
+      preview.hidden = preview.childNodes.length === 0;
     });
 
     button.appendChild(input);
     wrapper.appendChild(button);
+    wrapper.appendChild(preview);
     wrapper.appendChild(filename);
 
     return function () {
@@ -1506,6 +1535,121 @@
     return root + "cart/add.js";
   }
 
+  function cartJsonUrl() {
+    var root =
+      (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || "/";
+    if (root.charAt(root.length - 1) !== "/") root += "/";
+    return root + "cart.js";
+  }
+
+  function fetchCartJson() {
+    return fetch(cartJsonUrl(), {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("Could not load cart");
+      }
+      return response.json();
+    });
+  }
+
+  function buildMainFormData(form, variantId) {
+    var fd = new FormData();
+    fd.append("id", variantId);
+
+    var qtyInput = form.querySelector('[name="quantity"]');
+    var quantity = qtyInput ? Number(qtyInput.value) : 1;
+    if (!isFinite(quantity) || quantity < 1) quantity = 1;
+    fd.append("quantity", String(quantity));
+
+    var sellingPlan = form.querySelector('[name="selling_plan"]');
+    if (sellingPlan && sellingPlan.value) {
+      fd.append("selling_plan", sellingPlan.value);
+    }
+
+    var properties = collectProperties(variantId);
+    Object.keys(properties).forEach(function (name) {
+      fd.append("properties[" + name + "]", properties[name]);
+    });
+
+    collectFileEntries(variantId).forEach(function (entry) {
+      var key = "properties[" + entry.control.propertyName + "]";
+      var list = entry.fileInput.files;
+      for (var i = 0; i < list.length; i++) {
+        fd.append(key, list[i], list[i].name);
+      }
+    });
+
+    return fd;
+  }
+
+  function postCartItemsJson(items) {
+    return fetch(cartAddJsonUrl(), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({ items: items }),
+    }).then(function (response) {
+      if (!response.ok) {
+        return response.json().then(function (body) {
+          throw new Error((body && body.description) || "Could not add to cart");
+        });
+      }
+      return response.json();
+    });
+  }
+
+  function submitMultipartCartWithAddons(formData, variantId) {
+    injectIntoEntries(formData);
+
+    var addons = collectAddonItems(variantId)
+      .map(function (item) {
+        item.id = normalizeVariantId(item.id);
+        if (!item.quantity || item.quantity < 1) item.quantity = 1;
+        return item;
+      })
+      .filter(function (item) {
+        return item.id;
+      });
+
+    return fetch(cartAddJsonUrl(), {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData,
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          return response.json().then(function (body) {
+            throw new Error((body && body.description) || "Could not add to cart");
+          });
+        }
+        return response.json();
+      })
+      .then(function () {
+        if (!addons.length) return fetchCartJson();
+        return postCartItemsJson(addons).then(function () {
+          return fetchCartJson();
+        });
+      })
+      .then(function (cart) {
+        notifyCartUpdated(cart);
+        return cart;
+      });
+  }
+
+  function isMultipartAddonsBody(body) {
+    return Boolean(
+      body &&
+        typeof body === "object" &&
+        body.__productOptionsMultipartAddons &&
+        body.formData
+    );
+  }
+
   function notifyCartUpdated(cart) {
     var detail = { cart: cart, source: "product-options" };
     document.documentElement.dispatchEvent(
@@ -1537,16 +1681,25 @@
     var payload = buildCartItemsPayload(form, variantId);
     if (!payload) return Promise.resolve(false);
 
-    debug("adding main product + add-ons", payload.items.length);
+    var addonsOnly = payload.items.slice(1);
+    var hasFiles = collectFileEntries(variantId).length > 0;
 
+    debug("adding main product + add-ons", payload.items.length, hasFiles ? "(with files)" : "");
+
+    if (!hasFiles) {
+      return postCartItemsJson(payload.items)
+        .then(function (cart) {
+          notifyCartUpdated(cart);
+          return true;
+        });
+    }
+
+    // File uploads must use multipart FormData — JSON cart/add cannot carry files.
+    var mainFormData = buildMainFormData(form, variantId);
     return fetch(cartAddJsonUrl(), {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
       credentials: "same-origin",
-      body: JSON.stringify(payload),
+      body: mainFormData,
     })
       .then(function (response) {
         if (!response.ok) {
@@ -1555,6 +1708,12 @@
           });
         }
         return response.json();
+      })
+      .then(function () {
+        if (!addonsOnly.length) return fetchCartJson();
+        return postCartItemsJson(addonsOnly).then(function () {
+          return fetchCartJson();
+        });
       })
       .then(function (cart) {
         notifyCartUpdated(cart);
@@ -1622,6 +1781,8 @@
     var key = variantId != null ? String(variantId) : null;
     var addons = collectAddonItems(key);
     if (!addons.length) return null;
+    // Files cannot be serialised into JSON line items.
+    if (collectFileEntries(key).length) return null;
 
     var properties = collectProperties(key);
     var quantity = Number(body.get("quantity"));
@@ -1644,6 +1805,14 @@
 
   function transformBody(body) {
     if (typeof FormData !== "undefined" && body instanceof FormData) {
+      var variantId = body.get("id");
+      var key = variantId != null ? String(variantId) : null;
+      var addons = collectAddonItems(key);
+      var hasFiles = collectFileEntries(key).length > 0;
+      if (addons.length && hasFiles) {
+        return { __productOptionsMultipartAddons: true, formData: body, variantId: key };
+      }
+
       var items = formDataToCartItems(body);
       if (items) return JSON.stringify({ items: items });
       return injectIntoEntries(body);
@@ -1698,12 +1867,32 @@
     var nativeFetch = window.fetch;
     if (typeof nativeFetch === "function") {
       window.fetch = function (input, init) {
+        var self = this;
         var url = typeof input === "string" ? input : (input && input.url) || "";
         if (!isCartAddUrl(url)) return nativeFetch.apply(this, arguments);
 
         if (init && init.body != null) {
           try {
             var transformed = transformBody(init.body);
+            if (isMultipartAddonsBody(transformed)) {
+              return submitMultipartCartWithAddons(
+                transformed.formData,
+                transformed.variantId
+              )
+                .then(function (cart) {
+                  return new Response(JSON.stringify(cart), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                  });
+                })
+                .catch(function (error) {
+                  console.warn(
+                    "[product-options] Could not add files with add-ons.",
+                    error
+                  );
+                  return nativeFetch.apply(self, arguments);
+                });
+            }
             patchFetchBody(init, transformed);
             init.body = transformed;
           } catch (error) {
@@ -1712,7 +1901,6 @@
           return nativeFetch.apply(this, arguments);
         }
 
-        var self = this;
         var args = arguments;
         if (
           typeof Request !== "undefined" &&
@@ -1772,10 +1960,168 @@
 
   var MERGE_MARKER = "data-product-options-merged";
   var HIDDEN_MARKER = "data-product-options-hidden";
+  var FILE_THUMB_MARKER = "data-product-options-file-thumb";
   var LINE_CONTAINERS =
     "tr, li, .cart-item, [class*='cart-item'], [class*='cart__item'], [class*='line-item']";
 
   var applyingMerge = false;
+  var IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|heic|avif)(\?|#|$)/i;
+
+  function isImagePropertyValue(value) {
+    if (!value || typeof value !== "string") return false;
+    var trimmed = value.trim();
+    if (IMAGE_EXT.test(trimmed)) return true;
+    // Shopify file uploads land on the CDN under /uploads/ or /files/.
+    if (/cdn\.shopify\.com/i.test(trimmed) && /\/(uploads|files)\//i.test(trimmed)) {
+      return true;
+    }
+    return false;
+  }
+
+  function fileBasename(value) {
+    try {
+      var path = String(value).split("?")[0].split("#")[0];
+      var parts = path.split("/");
+      return parts[parts.length - 1] || path;
+    } catch (error) {
+      return String(value);
+    }
+  }
+
+  function resolveImageUrl(value) {
+    var trimmed = String(value || "").trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    // Some themes strip the host and leave a relative CDN path.
+    if (trimmed.indexOf("//") === 0) return "https:" + trimmed;
+    if (trimmed.charAt(0) === "/") return trimmed;
+    return null;
+  }
+
+  function createFileThumb(url, label) {
+    var wrap = document.createElement("a");
+    wrap.href = url;
+    wrap.target = "_blank";
+    wrap.rel = "noopener noreferrer";
+    wrap.className = ROOT_CLASS + "__cart-file";
+    wrap.setAttribute(FILE_THUMB_MARKER, "");
+    wrap.title = label || "Uploaded image";
+
+    var img = document.createElement("img");
+    img.className = ROOT_CLASS + "__cart-file-thumb";
+    img.src = url;
+    img.alt = label || "Uploaded image";
+    img.loading = "lazy";
+    wrap.appendChild(img);
+    return wrap;
+  }
+
+  /**
+   * Themes usually print file properties as plain text (often just the hashed
+   * filename). Replace that text with a clickable thumbnail when the Cart API
+   * value is an image URL / image filename.
+   */
+  function enhanceFileProperty(scope, name, value) {
+    if (!isImagePropertyValue(value)) return false;
+    if (scope.querySelector("[" + FILE_THUMB_MARKER + "]")) {
+      // Already enhanced in this line item row for this marker set — still
+      // allow multiple named uploads by checking the attribute value.
+      var existing = scope.querySelectorAll("[" + FILE_THUMB_MARKER + "]");
+      for (var e = 0; e < existing.length; e++) {
+        if (existing[e].getAttribute(FILE_THUMB_MARKER) === name) return true;
+      }
+    }
+
+    var url = resolveImageUrl(value);
+    var basename = fileBasename(value);
+    var searchTexts = [
+      normalizeText(name + ": " + value),
+      normalizeText(name + ":" + value),
+      normalizeText(name + " " + value),
+      normalizeText(name + ": " + basename),
+      normalizeText(name + ":" + basename),
+      normalizeText(name + " " + basename),
+      normalizeText(value),
+      normalizeText(basename),
+    ];
+
+    var target = findByText(scope, searchTexts);
+    if (!target) {
+      // Fallback: any descendant whose text contains the basename.
+      var nodes = scope.querySelectorAll("*");
+      for (var i = 0; i < nodes.length; i++) {
+        var text = normalizeText(nodes[i].textContent);
+        if (!text) continue;
+        if (text.indexOf(basename) === -1 && text.indexOf(normalizeText(value)) === -1) {
+          continue;
+        }
+        if (!target || target.contains(nodes[i])) target = nodes[i];
+      }
+    }
+    if (!target) return false;
+
+    // Prefer replacing the value node, not the whole "Label: value" row.
+    var valueNode = target;
+    if (normalizeText(target.textContent).indexOf(normalizeText(name)) === 0) {
+      var child = target.lastElementChild;
+      if (child && normalizeText(child.textContent).indexOf(basename) !== -1) {
+        valueNode = child;
+      }
+    }
+
+    if (!url) {
+      // Filename-only values can't form a CDN URL — leave text alone.
+      return false;
+    }
+
+    var thumb = createFileThumb(url, name + ": " + basename);
+    thumb.setAttribute(FILE_THUMB_MARKER, name);
+
+    // Keep the label, swap the value text for a thumbnail.
+    if (valueNode === target && normalizeText(target.textContent).indexOf(normalizeText(name)) === 0) {
+      var labelSpan = document.createElement("span");
+      labelSpan.textContent = name + ": ";
+      target.textContent = "";
+      target.appendChild(labelSpan);
+      target.appendChild(thumb);
+    } else {
+      valueNode.textContent = "";
+      valueNode.appendChild(thumb);
+    }
+    return true;
+  }
+
+  function enhanceCartFileThumbnails(cart) {
+    if (!cart || !cart.items) return;
+    cart.items.forEach(function (item) {
+      if (!item.properties) return;
+      var names = Object.keys(item.properties).filter(function (name) {
+        return name && name.charAt(0) !== "_";
+      });
+      if (!names.length) return;
+
+      var scope = findLineScope(item, names);
+      if (!scope) {
+        // File-only lines still need a scope — search by basename.
+        names.some(function (name) {
+          var value = item.properties[name];
+          if (!isImagePropertyValue(value)) return false;
+          var basename = fileBasename(value);
+          var match = findByText(document.body, [
+            normalizeText(name + ": " + basename),
+            normalizeText(name + ":" + basename),
+            normalizeText(basename),
+          ]);
+          if (match) scope = match.closest(LINE_CONTAINERS);
+          return Boolean(scope);
+        });
+      }
+      if (!scope) return;
+
+      names.forEach(function (name) {
+        enhanceFileProperty(scope, name, item.properties[name]);
+      });
+    });
+  }
 
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -1911,9 +2257,16 @@
     names.forEach(function (name) {
       var value = item.properties[name];
       if (!value) return;
+      var basename = fileBasename(value);
       texts.push(normalizeText(name + ": " + value));
       texts.push(normalizeText(name + ":" + value));
       texts.push(normalizeText(name + " " + value));
+      // Themes often print only the filename for uploaded files.
+      if (basename && basename !== value) {
+        texts.push(normalizeText(name + ": " + basename));
+        texts.push(normalizeText(name + ":" + basename));
+        texts.push(normalizeText(name + " " + basename));
+      }
     });
     if (!texts.length) return null;
 
@@ -1939,26 +2292,42 @@
     }
 
     var variantLine = findVariantLine(scope, item);
-    // Without a variant line there is nothing to merge into, so the theme's
-    // own rendering is left alone rather than hiding the values entirely.
     if (!variantLine) {
       debug("variant line not found in", scope);
+      // Still convert image uploads to thumbnails even when merge isn't possible.
+      names.forEach(function (name) {
+        var value = item.properties[name];
+        if (value && isImagePropertyValue(value)) {
+          enhanceFileProperty(scope, name, value);
+        }
+      });
       return;
     }
 
     var values = names
+      .filter(function (name) {
+        // Image uploads stay as thumbnails — don't fold them into "Black, XS, hash.PNG".
+        return !isImagePropertyValue(item.properties[name]);
+      })
       .map(function (name) {
         return item.properties[name];
       })
       .filter(Boolean);
-    if (!values.length) return;
-
-    debug("merging", values, "into", variantLine);
 
     names.forEach(function (name) {
-      if (item.properties[name]) hideProperty(scope, name, item.properties[name]);
+      var value = item.properties[name];
+      if (!value) return;
+      if (isImagePropertyValue(value)) {
+        enhanceFileProperty(scope, name, value);
+        return;
+      }
+      hideProperty(scope, name, value);
     });
-    appendMergedValues(variantLine, values);
+
+    if (values.length) {
+      debug("merging", values, "into", variantLine);
+      appendMergedValues(variantLine, values);
+    }
   }
 
   function mergeCartLines() {
@@ -1977,6 +2346,7 @@
 
         applyingMerge = true;
         try {
+          enhanceCartFileThumbnails(cart);
           cart.items.forEach(mergeLineItem);
         } finally {
           // Let our own DOM writes settle before the observer listens again.
@@ -2055,7 +2425,9 @@
     var settings = context.settings || {};
     debug("cart display mode:", settings.cartDisplay);
 
-    if (settings.cartDisplay === "merge_with_variant" && !cartWatchStarted) {
+    // Always watch the cart so uploaded images become thumbnails (and optional
+    // merge-with-variant keeps working when that setting is enabled).
+    if (!cartWatchStarted) {
       cartWatchStarted = true;
       watchCart();
     }

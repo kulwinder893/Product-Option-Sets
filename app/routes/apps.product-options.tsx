@@ -27,6 +27,10 @@ const PRODUCT_CARD_CSS = `
 .product-options__choice{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--product-options-border,#d9e2ec);border-radius:10px;background:#fff;cursor:pointer}
 .product-options__choice:has(:checked){border-color:var(--product-options-accent,#1a1a1a);box-shadow:0 0 0 1px var(--product-options-accent,#1a1a1a)}
 .product-options__choice-label{font-weight:600;line-height:1.3}
+.product-options__file-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.product-options__file-thumb{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d9e2ec;background:#f4f4f5}
+.product-options__cart-file{display:inline-flex;vertical-align:middle;margin-left:4px;text-decoration:none}
+.product-options__cart-file-thumb{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,0,0,.12);background:#f4f4f5}
 `.trim();
 
 function jsonResponse(body: unknown, status = 200) {

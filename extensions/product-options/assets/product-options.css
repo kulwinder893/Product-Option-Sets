@@ -439,6 +439,38 @@
   color: var(--po-color-help, inherit);
 }
 
+.product-options__file-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.product-options__file-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--product-options-border, #d9e2ec);
+  background: #f4f4f5;
+}
+
+.product-options__cart-file {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  text-decoration: none;
+}
+
+.product-options__cart-file-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #f4f4f5;
+}
+
 .product-options__swatch-label {
   max-width: 4.5rem;
   overflow: hidden;

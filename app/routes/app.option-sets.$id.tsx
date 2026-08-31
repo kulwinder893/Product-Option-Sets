@@ -141,7 +141,7 @@ export default function OptionSetEditor() {
         {...(builder.dirty ? {} : { disabled: true })}
         onClick={save}
       >
-        Save
+        {builder.dirty ? "Save changes" : "Save"}
       </s-button>
 
       <s-section heading="Option set details">
@@ -242,7 +242,14 @@ export default function OptionSetEditor() {
       </s-section>
 
       <s-section slot="aside" heading="Live preview">
-        <LivePreview fields={builder.draft.fields} />
+        <s-stack direction="block" gap="base">
+          <s-text color="subdued">
+            Simulates how shoppers see options on your product page. Interactions here
+            (like picking a file) are not saved — edit field settings on the left, then
+            click Save changes.
+          </s-text>
+          <LivePreview fields={builder.draft.fields} />
+        </s-stack>
       </s-section>
 
       <s-section slot="aside" heading="Next steps">

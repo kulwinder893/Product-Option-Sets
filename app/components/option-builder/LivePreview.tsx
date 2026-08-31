@@ -23,6 +23,7 @@ function PreviewFileUpload({
 }) {
   const inputId = `osp-file-preview-${field.id}`;
   const [filename, setFilename] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const extensions = field.settings.allowedExtensions ?? [];
   const accept = extensions.length
     ? extensions.map((ext) => `.${ext.replace(/^\./, "")}`).join(",")
@@ -58,18 +59,43 @@ function PreviewFileUpload({
         multiple={multiple}
         onChange={(event) => {
           const files = event.currentTarget.files;
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+          }
           if (!files?.length) {
             setFilename("");
             return;
           }
+          const first = files[0];
           setFilename(
             Array.from(files)
               .map((file) => file.name)
               .join(", "),
           );
+          if (first.type.startsWith("image/")) {
+            setPreviewUrl(URL.createObjectURL(first));
+          }
         }}
       />
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt={filename}
+          style={{
+            width: 72,
+            height: 72,
+            objectFit: "cover",
+            borderRadius: 8,
+            border: "1px solid var(--p-color-border, #c9cccf)",
+          }}
+        />
+      ) : null}
       {filename ? <s-text color="subdued">{filename}</s-text> : null}
+      <s-text color="subdued">
+        Preview only — shoppers upload files on the product page. This is not saved
+        with the option set.
+      </s-text>
     </s-stack>
   );
 }

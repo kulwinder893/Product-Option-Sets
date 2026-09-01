@@ -5,7 +5,7 @@ application_url = "https://product-option-sets-production.up.railway.app/app"
 embedded = true
 name = "Products Options Extras"
 
-[webhooks]
+[webhooks] 
 api_version = "2026-10"
 
 [access_scopes]

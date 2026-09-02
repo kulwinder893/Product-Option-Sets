@@ -164,7 +164,7 @@ export default function SettingsPage() {
         : fetcher.data && !fetcher.data.ok
           ? fetcher.data.message
           : "Ready to save";
-
+ 
   return (
     <s-page heading="Settings">
       <s-button
@@ -225,7 +225,7 @@ export default function SettingsPage() {
                   onClick={() =>
                     fetcher.submit({ intent: "reset-design" }, { method: "post" })
                   }
-                >
+                > 
                   Reset look
                 </button>
               </div>
